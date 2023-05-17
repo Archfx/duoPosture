@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	package="com.thain.duo"
+	android:sharedUserId="android.uid.system"
+	coreApp="true">
+
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+	<uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
+	<uses-permission android:name="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+	<application android:name=".PostureProcessorApp"
+		android:directBootAware="true"
+		android:persistent="true"
+		android:process="com.thain.duo">
+		<service android:name="PostureProcessorService" android:exported="true" />
+
+	</application>
+</manifest>

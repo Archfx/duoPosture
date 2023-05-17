@@ -1,0 +1,22 @@
+android_app {
+    name: "PostureProcessor",
+    owner: "thain",
+
+    manifest: "src/main/AndroidManifest.xml",
+    srcs: ["src/main/**/*.java", "src/main/**/*.kt"],
+    resource_dirs: ["src/main/res"],
+
+    static_libs: [
+        "kotlinx_coroutines",
+        "vendor.surface.displaytopology-V1.0-java"
+    ],
+
+    system_ext_specific: true,
+    certificate: "platform",
+    privileged: true,
+    platform_apis: true,
+
+    optimize: {
+        enabled: false,
+    },
+}
