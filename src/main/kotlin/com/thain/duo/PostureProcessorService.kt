@@ -21,12 +21,14 @@ import android.util.Log
 import kotlinx.coroutines.runBlocking
 
 import vendor.surface.displaytopology.V1_0.IDisplayTopology
+import vendor.surface.touchpen.V1_0.ITouchPen
 
 public class PostureProcessorService : Service(), SensorEventListener, IHwBinder.DeathRecipient {
     private var sensorManager: SensorManager? = null
     private var sensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
-    private var hal: IDisplayTopology? = null
+    private var displayHal: IDisplayTopology? = null
+    private var touchHal: ITouchPen? = null
     private var windowManager: IWindowManager? = null
     private var displayManager: IDisplayManager? = null
 
@@ -69,8 +71,11 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
 
     private fun connectHal() {
         try {
-            hal = IDisplayTopology.getService(true)
-            hal?.linkToDeath(this, HAL_DEATH_COOKIE)
+            displayHal = IDisplayTopology.getService(true)
+            displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
+
+            touchHal = ITouchPen.getService(true)
+            touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             Log.d(TAG, "Connected to HAL")
         } catch (e: Throwable) {
             Log.e(TAG, "HAL not connected", e)
@@ -82,7 +87,8 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
             connectHalIfNeeded()
 
             Log.d(TAG, "Setting display composition ${composition}")
-            hal?.setComposition(composition)
+            displayHal?.setComposition(composition)
+            touchHal?.setDisplayState(composition)
             currentDisplayComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
@@ -105,6 +111,28 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         return Service.START_STICKY
     }
 
+    enum class PostureSensorValue(val value: Float) {
+        Closed(0f),
+        PeekRight(1f),
+        PeekLeft(2f),
+        Book(3f),
+        Palette(4f),
+        FlatDualP(5f),
+        FlatDualL(6f),
+        BrochureRight(7f),
+        TentRight(8f),
+        FlipPRight(9f),
+        FlipLRight(10f),
+        FlipPLeft(11f),
+        FlipLLeft(12f),
+        BrochureLeft(13f),
+        TentLeft(14f),
+        RampRight(15f),
+        RampLeft(16f),
+    }
+
+    data class Posture(val posture: PostureSensorValue, val rotation: Float)
+
     /**
      *  SensorEventListener
      */
@@ -123,41 +151,93 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         if (displayManager == null) {
             Log.d(TAG, "Didn't get DisplayManager.")
         }
+        val sensorValue = PostureSensorValue(event.value[0])
+        val posture = Posture(sensorValue, event.value[1])
 
-        when (event.values[0]) {
-            // Span
-            0f, 1f, 2f, 3f, 4f, 5f, 6f -> {
+        when (posture.posture) {
+            PostureSensorValue.Closed -> {
+                // TODO: Turn off screen, call to power manager?
                 setComposition(2)
                 windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
             }
-            // Right Portrait
-            7f, 9f -> {
-                setComposition(1)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+
+            PostureSensorValue.Book,
+            PostureSensorValue.Palette,
+            PostureSensorValue.FlatDualP,
+            PostureSensorValue.FlatDualL -> {
+                setComposition(2)
+                windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
             }
 
-            // Right Landscape
-            8f, 10f, 15f -> {
+            PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
+                setComposition(1)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+
+                if (posture.rotation == 0f) {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                } else {
+                    displaymanager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                }
+            }
+
+            PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
+                setComposition(0)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                
+                if (posture.rotation == 0f) {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                } else {
+                    displaymanager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                }
+            }
+
+            PostureSensorValue.TentRight -> {
+                setComposition(1)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
+            }
+
+            PostureSensorValue.TentLeft ->
+            {
+                setComposition(0)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
+            }
+
+            PostureSensorValue.RampRight -> {
                 setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
             }
-
-            // Left Portrait
-            11f, 13f -> {
-                setComposition(0)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
-            }
-
-            // Left Landscape
-            12f, 14f, 16f -> {
+            
+            PostureSensorValue.RampLeft -> {
                 setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-            } 
+            }
+
+            PostureSensorValue.FlipLRight -> {
+                setComposition(1)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                if (posture.rotation == 90f) {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
+                } else {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                }
+            }
+
+            PostureSensorValue.FlipLLeft -> {
+                setComposition(0)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                if (posture.rotation == 90f) {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                } else {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
+                }
+            }
+
             else -> {
                 setComposition(2)
                 windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
@@ -175,7 +255,7 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
      */
 
     override fun serviceDied(cookie: Long) {
-        if (cookie == HAL_DEATH_COOKIE) {
+        if (cookie == DISPLAY_HAL_DEATH_COOKIE or cookie == TOUCHPEN_HAL_DEATH_COOKIE) {
             Log.e(TAG, "HAL died!")
             // runBlocking {
                 connectHal()
@@ -185,7 +265,8 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
     }
 
     companion object {
-        const val HAL_DEATH_COOKIE: Long = 1337
+        const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
+        const val TOUCHPEN_HAL_DEATH_COOKIE: Long = 1338
         const val TAG = "POSTURE PROCESSOR SERVICE"
     }
 }

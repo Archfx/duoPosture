@@ -8,7 +8,8 @@ android_app {
 
     static_libs: [
         "kotlinx_coroutines",
-        "vendor.surface.displaytopology-V1.0-java"
+        "vendor.surface.displaytopology-V1.0-java",
+        "vendor.surface.touchpen-V1.0-java"
     ],
 
     system_ext_specific: true,
