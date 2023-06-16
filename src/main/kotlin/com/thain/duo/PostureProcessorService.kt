@@ -27,6 +27,7 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
     private var sensorManager: SensorManager? = null
     private var sensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
+    private var currentRotation: Int = 0
     private var displayHal: IDisplayTopology? = null
     private var touchHal: ITouchPen? = null
     private var windowManager: IWindowManager? = null
@@ -64,7 +65,7 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
     }
 
     private fun connectHalIfNeeded() {
-        if (hal == null) {
+        if (displayHal == null || touchHal == null) {
             connectHal()
         }
     }
@@ -82,14 +83,28 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         }
     }
 
+    private fun setRotation(rotation: Int) {
+        try {
+            connectHalIfNeeded()
+            if (rotation != currentRotation) {
+                Log.d(TAG, "Setting display rotation ${rotation}")
+                displayHal?.onRotation(rotation)
+                currentRotation = rotation    
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Cannot set rotation", e)
+        }
+    }
+
     private fun setComposition(composition: Int) {
         try {
             connectHalIfNeeded()
-
-            Log.d(TAG, "Setting display composition ${composition}")
-            displayHal?.setComposition(composition)
-            touchHal?.setDisplayState(composition)
-            currentDisplayComposition = composition
+            if (currentDisplayComposition != composition) {
+                Log.d(TAG, "Setting display composition ${composition}")
+                displayHal?.setComposition(composition)
+                touchHal?.setDisplayState(composition)
+                currentDisplayComposition = composition
+            }
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
         }
@@ -104,14 +119,12 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand")
-        if (hal == null) {
-            connectHal()
-        }
+        connectHalIfNeeded()
 
         return Service.START_STICKY
     }
 
-    enum class PostureSensorValue(val value: Float) {
+    public enum class PostureSensorValue(val value: Float) {
         Closed(0f),
         PeekRight(1f),
         PeekLeft(2f),
@@ -128,10 +141,26 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         BrochureLeft(13f),
         TentLeft(14f),
         RampRight(15f),
-        RampLeft(16f),
+        RampLeft(16f);
+
+        companion object {
+            infix fun from(value: Float) = PostureSensorValue.values().first { it.value == value }
+        }
     }
 
-    data class Posture(val posture: PostureSensorValue, val rotation: Float)
+    enum class Rotation(val value: Int) {
+        R0(0),
+        R90(1),
+        R180(2),
+        R270(3);
+
+        companion object {
+            private val map = Rotation.values().associateBy { it.value }
+            infix fun from(value: Int) = map[value] ?: R0
+        }
+    }
+
+    data class Posture(val posture: PostureSensorValue, val rotation: Rotation)
 
     /**
      *  SensorEventListener
@@ -147,12 +176,17 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
     // event.values[5]: hingeAngle
 
     override fun onSensorChanged(event: SensorEvent) {
-        Log.d(TAG, "Got sensor event ${event.values[0]}")
         if (displayManager == null) {
             Log.d(TAG, "Didn't get DisplayManager.")
         }
-        val sensorValue = PostureSensorValue(event.value[0])
-        val posture = Posture(sensorValue, event.value[1])
+        val sensorValue = PostureSensorValue from event.values[0]
+        val posture = Posture(sensorValue, Rotation from event.values[1].toInt())
+
+        Log.d(TAG, "Got posture ${posture.posture.name} : ${posture.rotation.name}")
+
+        setRotation(posture.rotation.value)
+
+        windowManager?.thawRotation()
 
         when (posture.posture) {
             PostureSensorValue.Closed -> {
@@ -175,10 +209,10 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
                 setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
 
-                if (posture.rotation == 0f) {
+                if (posture.rotation == Rotation.R0) {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
                 } else {
-                    displaymanager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
                 }
             }
 
@@ -186,10 +220,10 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
                 setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
                 
-                if (posture.rotation == 0f) {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                if (posture.rotation == Rotation.R0) {
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
                 } else {
-                    displaymanager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
                 }
             }
 
@@ -220,20 +254,26 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
 
             PostureSensorValue.FlipLRight -> {
                 setComposition(1)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                if (posture.rotation == 90f) {
+                // windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                if (posture.rotation == Rotation.R90) {
+                    windowManager?.freezeRotation(1)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
                 } else {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                    windowManager?.freezeRotation(3)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, -717)
                 }
             }
 
             PostureSensorValue.FlipLLeft -> {
                 setComposition(0)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                if (posture.rotation == 90f) {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                // windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                if (posture.rotation == Rotation.R90) {
+                    windowManager?.freezeRotation(1)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, -717)
                 } else {
+                    windowManager?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
                 }
             }
@@ -255,7 +295,7 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
      */
 
     override fun serviceDied(cookie: Long) {
-        if (cookie == DISPLAY_HAL_DEATH_COOKIE or cookie == TOUCHPEN_HAL_DEATH_COOKIE) {
+        if ((cookie == DISPLAY_HAL_DEATH_COOKIE) || (cookie == TOUCHPEN_HAL_DEATH_COOKIE)) {
             Log.e(TAG, "HAL died!")
             // runBlocking {
                 connectHal()

@@ -4,7 +4,6 @@ android_app {
 
     manifest: "src/main/AndroidManifest.xml",
     srcs: ["src/main/**/*.java", "src/main/**/*.kt"],
-    resource_dirs: ["src/main/res"],
 
     static_libs: [
         "kotlinx_coroutines",
