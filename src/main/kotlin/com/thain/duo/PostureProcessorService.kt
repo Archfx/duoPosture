@@ -13,6 +13,8 @@ import android.os.IBinder
 import android.os.IHwBinder
 import android.os.HwRemoteBinder
 import android.os.RemoteException
+import android.os.PowerManager;
+import android.os.SystemClock;
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.IWindowManager
 import android.view.WindowManagerGlobal
@@ -23,15 +25,20 @@ import kotlinx.coroutines.runBlocking
 import vendor.surface.displaytopology.V1_0.IDisplayTopology
 import vendor.surface.touchpen.V1_0.ITouchPen
 
-public class PostureProcessorService : Service(), SensorEventListener, IHwBinder.DeathRecipient {
+public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var sensorManager: SensorManager? = null
-    private var sensor: Sensor? = null
+    private var postureSensor: Sensor? = null
+    private var hallSensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
     private var currentRotation: Int = 0
     private var displayHal: IDisplayTopology? = null
     private var touchHal: ITouchPen? = null
     private var windowManager: IWindowManager? = null
     private var displayManager: IDisplayManager? = null
+    private var powerManager: PowerManager? = null
+
+    private val postureSensorListener: PostureSensorListener = PostureSensorListener()
+    private val hallSensorListener: HallSensorListener = HallSensorListener()
 
 
     override fun onBind(intent: Intent): IBinder? {
@@ -44,11 +51,19 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         Log.d(TAG, "onCreate")
 
         sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        sensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
+
+        postureSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
             s.getStringType().contains("microsoft.sensor.posture")
         }.findFirst().orElse(null)
-        sensor?.let {
-            sensorManager!!.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        postureSensor?.let {
+            sensorManager!!.registerListener(postureSensorListener, postureSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+
+        hallSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
+            s.getStringType().contains("microsoft.sensor.hall_effect")
+        }.findFirst().orElse(null)
+        hallSensor?.let {
+            sensorManager!!.registerListener(hallSensorListener, hallSensor, SensorManager.SENSOR_DELAY_FASTEST)
         }
 
         windowManager = WindowManagerGlobal.getWindowManagerService()
@@ -60,6 +75,8 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
         if (displayManager == null) {
             Log.e(TAG, "Cannot get Display Manager")
         }
+
+        powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
 
         connectHal()
     }
@@ -99,12 +116,12 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
     private fun setComposition(composition: Int) {
         try {
             connectHalIfNeeded()
-            if (currentDisplayComposition != composition) {
+            // if (currentDisplayComposition != composition) {
                 Log.d(TAG, "Setting display composition ${composition}")
                 displayHal?.setComposition(composition)
                 touchHal?.setDisplayState(composition)
                 currentDisplayComposition = composition
-            }
+            // }
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
         }
@@ -112,8 +129,12 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
 
     override fun onDestroy() {
         super.onDestroy()
-        sensor?.let {
-            sensorManager!!.unregisterListener(this, sensor)
+        postureSensor?.let {
+            sensorManager!!.unregisterListener(postureSensorListener, postureSensor)
+        }
+
+        hallSensor?.let {
+            sensorManager!!.unregisterListener(hallSensorListener, hallSensor)
         }
     }
 
@@ -162,132 +183,153 @@ public class PostureProcessorService : Service(), SensorEventListener, IHwBinder
 
     data class Posture(val posture: PostureSensorValue, val rotation: Rotation)
 
-    /**
-     *  SensorEventListener
-     */
+    inner class PostureSensorListener : SensorEventListener {
+        /**
+        *  SensorEventListener
+        */
 
-    // TODO: Need to parse posture rotation as well to set proper display offset
-    // event.values[0]: Posture
-    // event.values[1]: Rotation
-    // V2 exclusive, query for version first (sensor.getVersion(), 1 or 2)
-    // event.values[2]: Gesture
-    // event.values[3]: confidence
-    // event.values[4]: accelY
-    // event.values[5]: hingeAngle
+        // TODO: Need to parse posture rotation as well to set proper display offset
+        // event.values[0]: Posture
+        // event.values[1]: Rotation
+        // V2 exclusive, query for version first (sensor.getVersion(), 1 or 2)
+        // event.values[2]: Gesture
+        // event.values[3]: confidence
+        // event.values[4]: accelY
+        // event.values[5]: hingeAngle
 
-    override fun onSensorChanged(event: SensorEvent) {
-        if (displayManager == null) {
-            Log.d(TAG, "Didn't get DisplayManager.")
-        }
-        val sensorValue = PostureSensorValue from event.values[0]
-        val posture = Posture(sensorValue, Rotation from event.values[1].toInt())
-
-        Log.d(TAG, "Got posture ${posture.posture.name} : ${posture.rotation.name}")
-
-        setRotation(posture.rotation.value)
-
-        windowManager?.thawRotation()
-
-        when (posture.posture) {
-            PostureSensorValue.Closed -> {
-                // TODO: Turn off screen, call to power manager?
-                setComposition(2)
-                windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+        override fun onSensorChanged(event: SensorEvent) {
+            if (displayManager == null) {
+                Log.d(TAG, "Didn't get DisplayManager.")
             }
+            val sensorValue = PostureSensorValue from event.values[0]
+            val posture = Posture(sensorValue, Rotation from event.values[1].toInt())
 
-            PostureSensorValue.Book,
-            PostureSensorValue.Palette,
-            PostureSensorValue.FlatDualP,
-            PostureSensorValue.FlatDualL -> {
-                setComposition(2)
-                windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-            }
+            Log.d(TAG, "Got posture ${posture.posture.name} : ${posture.rotation.name}")
 
-            PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
-                setComposition(1)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+            setRotation(posture.rotation.value)
 
-                if (posture.rotation == Rotation.R0) {
+            windowManager?.thawRotation()
+
+            when (posture.posture) {
+                PostureSensorValue.Closed -> {
+                    // TODO: Turn off screen, call to power manager?
+                    setComposition(2)
+                    windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                }
+
+                PostureSensorValue.Book,
+                PostureSensorValue.Palette,
+                PostureSensorValue.FlatDualP,
+                PostureSensorValue.FlatDualL -> {
+                    setComposition(2)
+                    windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                }
+
+                PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
+                    setComposition(1)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+
+                    if (posture.rotation == Rotation.R0) {
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                    } else {
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
+                    }
+                }
+
+                PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
+                    setComposition(0)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                    
+                    if (posture.rotation == Rotation.R0) {
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
+                    } else {
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                    }
+                }
+
+                PostureSensorValue.TentRight -> {
+                    setComposition(1)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
-                } else {
+                }
+
+                PostureSensorValue.TentLeft ->
+                {
+                    setComposition(0)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
                 }
-            }
 
-            PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
-                setComposition(0)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                PostureSensorValue.RampRight -> {
+                    setComposition(1)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                }
                 
-                if (posture.rotation == Rotation.R0) {
+                PostureSensorValue.RampLeft -> {
+                    setComposition(0)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
-                } else {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                }
+
+                PostureSensorValue.FlipLRight -> {
+                    setComposition(1)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                    if (posture.rotation == Rotation.R90) {
+                        // windowManager?.freezeRotation(1)
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                    } else {
+                        // windowManager?.freezeRotation(3)
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 717, 0)
+                    }
+                }
+
+                PostureSensorValue.FlipLLeft -> {
+                    setComposition(0)
+                    windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
+                    if (posture.rotation == Rotation.R90) {
+                        // windowManager?.freezeRotation(1)
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
+                    } else {
+                        // windowManager?.freezeRotation(3)
+                        displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -717, 0)
+                    }
+                }
+
+                else -> {
+                    setComposition(2)
+                    windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 }
             }
+        }
 
-            PostureSensorValue.TentRight -> {
-                setComposition(1)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
-            }
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
 
-            PostureSensorValue.TentLeft ->
-            {
-                setComposition(0)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
-            }
-
-            PostureSensorValue.RampRight -> {
-                setComposition(1)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-            }
-            
-            PostureSensorValue.RampLeft -> {
-                setComposition(0)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-            }
-
-            PostureSensorValue.FlipLRight -> {
-                setComposition(1)
-                // windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
-                if (posture.rotation == Rotation.R90) {
-                    windowManager?.freezeRotation(1)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
-                } else {
-                    windowManager?.freezeRotation(3)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, -717)
-                }
-            }
-
-            PostureSensorValue.FlipLLeft -> {
-                setComposition(0)
-                // windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1800, 1350)
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, 1350, 1800)
-                if (posture.rotation == Rotation.R90) {
-                    windowManager?.freezeRotation(1)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, -717)
-                } else {
-                    windowManager?.freezeRotation(3)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 717)
-                }
-            }
-
-            else -> {
-                setComposition(2)
-                windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-            }
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+    inner class HallSensorListener : SensorEventListener {
+        private var currentHallValue: Int = 0
 
+        override fun onSensorChanged(sensorEvent: SensorEvent) {
+            val hallValue = sensorEvent.values[0].toInt()
+            Log.d(TAG, "hall value: " + hallValue)
+
+            if (hallValue == 0) {
+                powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH, 0)
+            } else if (currentHallValue == 0) {
+                powerManager?.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_LID, "hall opened");
+            }
+
+            currentHallValue = hallValue
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+
+        }
     }
 
     /**
