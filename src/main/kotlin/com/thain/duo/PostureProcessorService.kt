@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.IDisplayManager;
+import android.hardware.devicestate.DeviceStateManagerGlobal;
+import android.hardware.devicestate.DeviceStateRequest;
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -169,6 +171,13 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
+    enum class DeviceState(val value: Int) {
+        CLOSED(0),
+        HALF_OPEN(1),
+        FLAT(2),
+        FOLDED(3)
+    }
+
     enum class Rotation(val value: Int) {
         R0(0),
         R90(1),
@@ -209,6 +218,28 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             setRotation(posture.rotation.value)
 
             windowManager?.thawRotation()
+
+            when (posture.posture) {
+                PostureSensorValue.Book,
+                PostureSensorValue.Palette,
+                PostureSensorValue.PeekLeft,
+                PostureSensorValue.PeekRight -> {
+                    DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
+                }
+
+                PostureSensorValue.FlatDualP,
+                PostureSensorValue.FlatDualL -> {
+                    DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
+                }
+
+                PostureSensorValue.Closed -> {
+                    DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
+                }
+
+                else -> {
+                    DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
+                }
+            }
 
             when (posture.posture) {
                 PostureSensorValue.Closed -> {
