@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <integer name="panel_width">1350</integer>
+    <integer name="panel_height">1800</integer>
+    <integer name="hinge">84</integer>
+</resources>
