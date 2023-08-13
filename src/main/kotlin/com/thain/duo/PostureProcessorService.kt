@@ -14,7 +14,10 @@ import android.hardware.SensorManager
 import android.provider.Settings
 import android.os.IBinder
 import android.os.IHwBinder
+import android.os.Handler
 import android.os.HwRemoteBinder
+import android.os.Looper
+import android.os.Message
 import android.os.RemoteException
 import android.os.PowerManager
 import android.os.SystemClock
@@ -39,8 +42,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var sensorManager: SensorManager? = null
     private var postureSensor: Sensor? = null
     private var hallSensor: Sensor? = null
+    private var hingeSensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
-    private var currentRotation: Int = -1
+    private var currentTouchComposition: Int = -1
+    private var currentRotation: Rotation = Rotation.RUnknown
     private var displayHal: IDisplayTopology? = null
     private var touchHal: ITouchPen? = null
     private var windowManager: IWindowManager? = null
@@ -49,8 +54,36 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var currentPosture: Posture? = null
     private var pendingPosture: Posture? = null
 
+    private val handler: Handler = object: Handler(Looper.getMainLooper()) {
+        override fun handleMessage(msg: Message) {
+            when (msg.what) {
+                MSG_DISPLAY_LEFT -> {
+                    setDisplay(0)
+                    setTouch(0)
+                }
+
+                MSG_DISPLAY_RIGHT -> {
+                    setDisplay(1)
+                    setTouch(1) 
+                }
+
+                MSG_DISPLAY_BOTH -> {
+                    setDisplay(2)
+                    setTouch(2) 
+                }
+
+                MSG_TURN_OFF_SENSORS -> {
+                    Log.d(TAG, "Hall closed. Deregister sensors after timeout")
+                    sensorManager!!.unregisterListener(postureSensorListener, postureSensor)
+                    sensorManager!!.unregisterListener(hingeAngleSensorListener, hingeSensor)
+                }
+            }
+        }
+    }
+
     private val postureSensorListener: PostureSensorListener = PostureSensorListener()
     private val hallSensorListener: HallSensorListener = HallSensorListener()
+    private val hingeAngleSensorListener: HingeAngleSensorListener = HingeAngleSensorListener()
 
     private val rotationWatcher: IRotationWatcher = object : IRotationWatcher.Stub() {
         override fun onRotationChanged(rotation: Int) {
@@ -94,8 +127,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             PANEL_OFFSET = PANEL_X / 2
         }
 
-        setBezel(0)
-
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
 
         sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -112,6 +143,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }.findFirst().orElse(null)
         hallSensor?.let {
             sensorManager!!.registerListener(hallSensorListener, hallSensor, SensorManager.SENSOR_DELAY_FASTEST)
+        }
+
+        hingeSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE, false)
+        hingeSensor?.let {
+            sensorManager!!.registerListener(hingeAngleSensorListener, hingeSensor, SensorManager.SENSOR_DELAY_NORMAL)
         }
 
         windowManager = WindowManagerGlobal.getWindowManagerService()
@@ -150,13 +186,20 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    private fun setRotation(rotation: Int) {
+    private fun setRotation(rotation: Rotation) {
         try {
             connectHalIfNeeded()
             if (rotation != currentRotation) {
                 Log.d(TAG, "Setting display rotation ${rotation}")
-                displayHal?.onRotation(rotation)
-                currentRotation = rotation    
+                displayHal?.onRotation(rotation.value)
+                // when (rotation) {
+                //     Rotation.R0 -> touchHal?.displayOrientation(0)
+                //     Rotation.R90 -> touchHal?.displayOrientation(90)
+                //     Rotation.R180 -> touchHal?.displayOrientation(180)
+                //     Rotation.R270 -> touchHal?.displayOrientation(270)
+                //     else -> touchHal?.displayOrientation(0)
+                // }
+                currentRotation = rotation
             }
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set rotation", e)
@@ -166,35 +209,56 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private fun setComposition(composition: Int) {
         try {
             connectHalIfNeeded()
-            // if (currentDisplayComposition != composition) {
-                Log.d(TAG, "Setting display composition ${composition}")
-                displayHal?.setComposition(composition)
-                touchHal?.setDisplayState(composition)
-                currentDisplayComposition = composition
-            // }
+            Log.d(TAG, "Setting display composition ${composition}")
+
+            handler.removeCallbacksAndMessages(null)
+
+            // set it to both screen first
+            // displayHal?.setComposition(composition)
+            // touchHal?.setDisplayState(composition)
+
+            displayHal?.setComposition(2)
+            touchHal?.setDisplayState(2)
+
+            if (composition != 2) {
+                // handler.sendEmptyMessageDelayed(2, 100)
+                handler.sendEmptyMessageDelayed(composition, 500)
+            }
+
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
         }
     }
 
-    private fun getBezel(): Int {
+    private fun setDisplay(composition: Int) {
         try {
             connectHalIfNeeded()
-            // if (currentDisplayComposition != composition) {
-                return displayHal?.getBezelSize() ?: -1
-            // }
+            Log.d(TAG, "Setting display composition ${composition}")
+            displayHal?.setComposition(composition)
+            currentDisplayComposition = composition
         } catch (e: Throwable) {
-            Log.e(TAG, "Cannot get bezel", e)
-            return -1
+            Log.e(TAG, "Cannot set display composition", e)
         }
     }
 
-    private fun setBezel(bezelSize: Int) {
+     private fun setTouch(composition: Int) {
         try {
             connectHalIfNeeded()
-            displayHal?.setBezelSize(bezelSize)
+            Log.d(TAG, "Setting touch composition ${composition}")
+            touchHal?.setDisplayState(composition)
+            currentTouchComposition = composition
         } catch (e: Throwable) {
-            Log.e(TAG, "Cannot set bezel", e)
+            Log.e(TAG, "Cannot set touch composition", e)
+        }
+    }
+
+    private fun setHingeAngle(angle: Int) {
+        try {
+            connectHalIfNeeded()
+            Log.d(TAG, "Setting hinge angle ${angle}")
+            // touchHal?.hingeAngle(angle)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Cannot set angle", e)
         }
     }
 
@@ -255,7 +319,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         R0(0),
         R90(1),
         R180(2),
-        R270(3);
+        R270(3),
+        RUnknown(-1);
 
         companion object {
             private val map = Rotation.values().associateBy { it.value }
@@ -293,7 +358,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
         Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
-        setRotation(newPosture.rotation.value)
+        setRotation(newPosture.rotation)
 
         when (newPosture.posture) {
             PostureSensorValue.Book,
@@ -320,22 +385,21 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         when (newPosture.posture) {
             PostureSensorValue.Closed -> {
                 // TODO: Turn off screen, call to power manager?
-                setComposition(2)
                 windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                setComposition(2)
             }
 
             PostureSensorValue.Book,
             PostureSensorValue.Palette,
             PostureSensorValue.FlatDualP,
             PostureSensorValue.FlatDualL -> {
-                setComposition(2)
                 windowManager?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                setComposition(2)
             }
 
             PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
-                setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 if (newPosture.rotation == Rotation.R0) {
@@ -343,10 +407,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 } else {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
+
+                setComposition(1)
             }
 
             PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
-                setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 
                 if (newPosture.rotation == Rotation.R0) {
@@ -354,35 +419,40 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 } else {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
+
+                setComposition(0)
             }
 
             PostureSensorValue.TentRight -> {
-                setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
+
+                setComposition(1)
             }
 
             PostureSensorValue.TentLeft ->
             {
-                setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
+
+                setComposition(0)
             }
 
             PostureSensorValue.RampRight -> {
-                setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
+
+                setComposition(1)
             }
             
             PostureSensorValue.RampLeft -> {
-                setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
+
+                setComposition(0)
             }
 
             PostureSensorValue.FlipLRight -> {
-                setComposition(1)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 if (newPosture.rotation == Rotation.R90) {
                     // windowManager?.freezeRotation(1)
@@ -391,10 +461,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // windowManager?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
+
+                setComposition(1)
             }
 
             PostureSensorValue.FlipLLeft -> {
-                setComposition(0)
                 windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 if (newPosture.rotation == Rotation.R90) {
                     // windowManager?.freezeRotation(1)
@@ -403,6 +474,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // windowManager?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
+
+                setComposition(0)
             }
 
             else -> {
@@ -490,12 +563,34 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             Log.d(TAG, "hall value: " + hallValue)
 
             if (hallValue == 0) {
+                handler.sendEmptyMessageDelayed(MSG_TURN_OFF_SENSORS, 1000)
                 powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH, 0)
             } else if (currentHallValue == 0) {
+                handler.removeCallbacksAndMessages(null)
                 powerManager?.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_LID, "hall opened");
+
+                Log.d(TAG, "Hall wake up. Register sensors")
+                postureSensor?.let {
+                    sensorManager!!.registerListener(postureSensorListener, postureSensor, SensorManager.SENSOR_DELAY_UI)
+                }
+
+                hingeSensor?.let {
+                    sensorManager!!.registerListener(hingeAngleSensorListener, hingeSensor, SensorManager.SENSOR_DELAY_NORMAL)
+                }
             }
 
             currentHallValue = hallValue
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+
+        }
+    }
+
+    inner class HingeAngleSensorListener : SensorEventListener {
+        override fun onSensorChanged(sensorEvent: SensorEvent) {
+            val angle = sensorEvent.values[0].toInt()
+            setHingeAngle(angle);
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
@@ -521,5 +616,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
         const val TOUCHPEN_HAL_DEATH_COOKIE: Long = 1338
         const val TAG = "POSTURE PROCESSOR SERVICE"
+        const val MSG_DISPLAY_LEFT: Int = 0
+        const val MSG_DISPLAY_RIGHT: Int = 1
+        const val MSG_DISPLAY_BOTH: Int = 2
+        const val MSG_TURN_OFF_SENSORS: Int = 420
     }
 }
