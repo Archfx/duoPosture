@@ -31,7 +31,7 @@ import android.util.Log
 
 import kotlinx.coroutines.runBlocking
 
-import vendor.surface.displaytopology.V1_0.IDisplayTopology
+import vendor.surface.displaytopology.V1_1.IDisplayTopology
 import vendor.surface.touchpen.V1_0.ITouchPen
 
 import com.thain.duo.ResourceHelper.WIDTH
@@ -214,16 +214,19 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             handler.removeCallbacksAndMessages(null)
 
             // set it to both screen first
-            // displayHal?.setComposition(composition)
-            // touchHal?.setDisplayState(composition)
+            displayHal?.setComposition(composition)
+            touchHal?.setDisplayState(composition)
 
-            displayHal?.setComposition(2)
-            touchHal?.setDisplayState(2)
 
-            if (composition != 2) {
-                // handler.sendEmptyMessageDelayed(2, 100)
-                handler.sendEmptyMessageDelayed(composition, 500)
-            }
+            // handler.sendEmptyMessageDelayed(composition, 2000)
+
+            // displayHal?.setComposition(2)
+            // touchHal?.setDisplayState(2)
+
+            // if (composition != 2) {
+            //     // handler.sendEmptyMessageDelayed(2, 100)
+            //     handler.sendEmptyMessageDelayed(composition, 500)
+            // }
 
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
@@ -400,25 +403,25 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
 
             PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-
                 if (newPosture.rotation == Rotation.R0) {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 } else {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
+
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
             }
 
             PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
-                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                
                 if (newPosture.rotation == Rotation.R0) {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 } else {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
+
+                windowManager?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(0)
             }
