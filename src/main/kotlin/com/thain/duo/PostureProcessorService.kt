@@ -427,20 +427,20 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             PostureSensorValue.Palette,
             PostureSensorValue.PeekLeft,
             PostureSensorValue.PeekRight -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
             }
 
             PostureSensorValue.FlatDualP,
             PostureSensorValue.FlatDualL -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
             }
 
             PostureSensorValue.Closed -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
             }
 
             else -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
             }
         }
 
