@@ -13,3 +13,32 @@ lunch treble_arm64_bgN-ap2a-userdebug
 make PostureProcessor
 # adb install --staged out/target/product/tdgsi_arm64_ab/system/system_ext/priv-app/PostureProcessor/PostureProcessor.apk
 # adb reboot
+
+
+
+# Set variables
+REPO="Archfx/duoPosture"   # Replace with your GitHub repo in the format "user/repo"
+TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  # Version tag, here using the current datetime
+APK_PATH="out/target/product/tdgsi_arm64_ab/system/system_ext/priv-app/PostureProcessor/PostureProcessor.apk" 
+RELEASE_NAME="PostureProcessor Release $TAG_NAME"
+RELEASE_BODY="Dubug"
+
+SIGNED_APK_PATH="duo-de/apk/PostureProcessor.apk"
+KEY="../archfx-priv/keys/releasekey.pk8"
+CERT="../archfx-priv/keys/releasekey.x509.pem"
+
+apksigner sign --key $KEY --cert $CERT  $APK_PATH 
+apksigner verify $APK_PATH 
+
+# Check if build was successful
+if [ ! -f "$APK_PATH" ]; then
+  echo "Error: APK not found at $APK_PATH"
+  exit 1
+fi
+
+
+# Create a GitHub release and upload the APK
+echo "Creating GitHub release $RELEASE_NAME..."
+gh release create "$TAG_NAME" "$APK_PATH" --repo "$REPO" --title "$RELEASE_NAME" --notes "$RELEASE_BODY"
+
+echo "Release $RELEASE_NAME created successfully!"
