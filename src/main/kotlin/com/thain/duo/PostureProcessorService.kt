@@ -37,7 +37,7 @@ import android.util.Log
 import kotlinx.coroutines.runBlocking
 
 import vendor.surface.displaytopology.V1_2.IDisplayTopology
-import vendor.surface.touchpen.V1_2.ITouchPen
+import vendor.surface.touchpen.V1_0.ITouchPen
 
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
@@ -62,6 +62,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var postureOverlay: View? = null
 
     private var postureOverlayShown: Boolean = false
+
+    // private var isTouchFilterActive = false
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -416,6 +418,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         } 
     }
 
+   
+
     private fun processPosture(newPosture: Posture) {
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
         Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
@@ -471,6 +475,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
+                
             }
 
             PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
@@ -488,7 +493,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             PostureSensorValue.TentRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-
                 setComposition(1)
             }
 
@@ -496,21 +500,18 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-
                 setComposition(0)
             }
 
             PostureSensorValue.RampRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-
                 setComposition(1)
             }
             
             PostureSensorValue.RampLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-
                 setComposition(0)
             }
 
@@ -523,7 +524,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // systemWm?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
-
                 setComposition(1)
             }
 
@@ -536,7 +536,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // systemWm?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
-
                 setComposition(0)
             }
 
@@ -671,12 +670,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     companion object {
         const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
         const val TOUCHPEN_HAL_DEATH_COOKIE: Long = 1338
-        const val TAG = "POSTURE PROCESSOR"
+        const val TAG = "POSTURE PROCESSOR WITH ARCHFX MODS"
         const val MSG_DISPLAY_LEFT: Int = 0
         const val MSG_DISPLAY_RIGHT: Int = 1
         const val MSG_DISPLAY_BOTH: Int = 2
         const val MSG_TURN_OFF_SENSORS: Int = 420
         const val MSG_SHOW_POSTURE: Int = 5
         const val MSG_HIDE_POSTURE: Int = 6
+        const val DISABLE_TOUCH_LEFT: Int = 1 
+        const val DISABLE_TOUCH_RIGHT: Int = 2
+        const val TOUCH_ALL_ENABLE: Int = 0
     }
 }
