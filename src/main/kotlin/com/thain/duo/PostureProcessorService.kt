@@ -37,7 +37,7 @@ import android.util.Log
 import kotlinx.coroutines.runBlocking
 
 import vendor.surface.displaytopology.V1_2.IDisplayTopology
-import vendor.surface.touchpen.V1_0.ITouchPen
+import vendor.surface.touchpen.V1_2.ITouchPen
 
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
