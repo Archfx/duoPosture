@@ -253,7 +253,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             displayHal = IDisplayTopology.getService(true)
             displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
-
+            // touchHal = ITouchPen.getService(true)
+            // touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+            // Log.d(TAG, "Connected to HAL")
             touchHal = getTouchPenInstance()
             touchHal?.let {
                 val linkToDeathMethod = it.javaClass.getMethod("linkToDeath", IHwBinder.DeathRecipient::class.java, Long::class.javaPrimitiveType)
