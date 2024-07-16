@@ -43,6 +43,8 @@ import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
 import com.thain.duo.ResourceHelper.HINGE
 
+
+
 public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var sensorManager: SensorManager? = null
     private var postureSensor: Sensor? = null
@@ -52,7 +54,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var currentTouchComposition: Int = -1
     private var currentRotation: Rotation = Rotation.RUnknown
     private var displayHal: IDisplayTopology? = null
-    private var touchHal: ITouchPen? = null
+    private var touchHal: Any? = null
     private var systemWm: IWindowManager? = null
     private var userWm: WindowManager? = null
     private var displayManager: IDisplayManager? = null
@@ -199,6 +201,25 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         connectHal()
     }
 
+    private fun getTouchPenInstance(): Any? {
+        return try {
+            // Try to get ITouchPen V1.2
+            val classV1_2 = Class.forName("vendor.surface.touchpen.V1_2.ITouchPen")
+            classV1_2.getMethod("getService").invoke(null)
+        } catch (e: ClassNotFoundException) {
+            try {
+                // Try to get ITouchPen V1.0
+                val classV1_0 = Class.forName("vendor.surface.touchpen.V1_0.ITouchPen")
+                classV1_0.getMethod("getService").invoke(null)
+            } catch (e: ClassNotFoundException) {
+                // Neither version is available
+                Log.e("PostureProcessorService", "No suitable ITouchPen version found")
+                null
+            }
+        }
+    }
+
+
     private fun createPostureOverlay() {
         val inflater = LayoutInflater.from(applicationContext)
         postureOverlay = inflater.inflate(R.layout.posture_overlay, null)
@@ -233,8 +254,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             displayHal = IDisplayTopology.getService(true)
             displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
 
-            touchHal = ITouchPen.getService(true)
-            touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+            touchHal = getTouchPenInstance()
+            touchHal?.let {
+                val linkToDeathMethod = it.javaClass.getMethod("linkToDeath", IHwBinder.DeathRecipient::class.java, Long::class.javaPrimitiveType)
+                linkToDeathMethod.invoke(it, this, TOUCHPEN_HAL_DEATH_COOKIE)
+            }
             Log.d(TAG, "Connected to HAL")
         } catch (e: Throwable) {
             Log.e(TAG, "HAL not connected", e)
@@ -269,7 +293,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             handler.removeCallbacksAndMessages(null)
 
             displayHal?.setComposition(composition)
-            touchHal?.setDisplayState(composition)
+            // touchHal?.setDisplayState(composition)
+            touchHal?.let {
+                try {
+                    val method = it.javaClass.getMethod("setDisplayState", Int::class.java)
+                    method.invoke(it, composition)
+                } catch (e: Exception) {
+                    Log.e("PostureProcessorService", "Error invoking setDisplayState", e)
+                }
+            } ?: run {
+                Log.e("PostureProcessorService", "ITouchPen not available on this device")
+            }    
             currentTouchComposition = composition
             currentDisplayComposition = composition
 
@@ -294,7 +328,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting display composition ${composition}")
-            displayHal?.setComposition(composition)
+            // displayHal?.setComposition(composition)
+            displayHal?.let {
+                try {
+                    val method = it.javaClass.getMethod("setComposition", Int::class.java)
+                    method.invoke(it, composition)
+                } catch (e: Exception) {
+                    Log.e("PostureProcessorService", "Error invoking setComposition", e)
+                }
+            } ?: run {
+                Log.e("PostureProcessorService", "Display HAL not available")
+            }
             currentDisplayComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set display composition", e)
@@ -305,7 +349,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting touch composition ${composition}")
-            touchHal?.setDisplayState(composition)
+            // touchHal?.setDisplayState(composition)
+            touchHal?.let {
+                try {
+                    val method = it.javaClass.getMethod("setDisplayState", Int::class.java)
+                    method.invoke(it, composition)
+                } catch (e: Exception) {
+                    Log.e("PostureProcessorService", "Error invoking setDisplayState", e)
+                }
+            } ?: run {
+                Log.e("PostureProcessorService", "ITouchPen not available on this device")
+            }
             currentTouchComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set touch composition", e)
@@ -316,7 +370,18 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
-            touchHal?.hingeAngle(angle)
+            // touchHal?.hingeAngle(angle)
+            touchHal?.let {
+                try {
+                    val method = it.javaClass.getMethod("hingeAngle", Int::class.java)
+                    method.invoke(it, angle)
+                } catch (e: Exception) {
+                    Log.e("PostureProcessorService", "Error invoking hingeAngle", e)
+                }
+            } ?: run {
+                Log.e("PostureProcessorService", "Touch HAL not available")
+            }
+        
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
