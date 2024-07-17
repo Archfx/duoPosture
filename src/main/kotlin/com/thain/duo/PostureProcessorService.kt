@@ -236,9 +236,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             displayHal = IDisplayTopology.getService(true)
             displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
-
             
             try {
+                // checking if device is duo2
                 touchHalV2 = ITouchPenV1_2.getService(true)
                 touchHalV2?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             } catch (e: Throwable) {
@@ -248,6 +248,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             if (touchHalV2 == null) {
                 try {
+                    // Then the device should be a duo1
                     touchHal = ITouchPenV1_0.getService(true)
                     touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
                 } catch (e: Throwable) {
@@ -255,9 +256,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 } 
             }
 
-
-            // touchHal = ITouchPen.getService(true)
-            // touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             Log.d(TAG, "Connected to HAL")
         } catch (e: Throwable) {
             Log.e(TAG, "HAL not connected", e)
@@ -346,8 +344,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             {
                 touchHalV2?.setDisplayState(composition)
             }
-
-            // touchHal?.setDisplayState(composition)
             currentTouchComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set touch composition", e)
@@ -366,7 +362,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             {
                 touchHalV2?.hingeAngle(angle)
             }
-            // touchHal?.hingeAngle(angle)
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -720,7 +715,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     companion object {
         const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
         const val TOUCHPEN_HAL_DEATH_COOKIE: Long = 1338
-        const val TAG = "POSTURE PROCESSOR WITH ARCHFX MODS"
+        const val TAG = "POSTURE PROCESSOR"
         const val MSG_DISPLAY_LEFT: Int = 0
         const val MSG_DISPLAY_RIGHT: Int = 1
         const val MSG_DISPLAY_BOTH: Int = 2
