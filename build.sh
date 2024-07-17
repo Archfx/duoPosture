@@ -17,8 +17,8 @@ make PostureProcessor
 
 
 # Set variables
-REPO="Archfx/duoPosture"   # Replace with your GitHub repo in the format "user/repo"
-TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  # Version tag, here using the current datetime
+REPO="Archfx/duoPosture" 
+TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  
 APK_PATH="out/target/product/tdgsi_arm64_ab/system/system_ext/priv-app/PostureProcessor/PostureProcessor.apk" 
 RELEASE_NAME="PostureProcessor Release $TAG_NAME"
 RELEASE_BODY="Dubug"
@@ -36,8 +36,6 @@ if [ ! -f "$APK_PATH" ]; then
   exit 1
 fi
 
-
-# Create a GitHub release and upload the APK
 echo "Creating GitHub release $RELEASE_NAME..."
 gh release create "$TAG_NAME" "$APK_PATH" --repo "$REPO" --title "$RELEASE_NAME" --notes "$RELEASE_BODY"
 

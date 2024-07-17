@@ -67,7 +67,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureOverlayShown: Boolean = false
 
-    // private var isTouchFilterActive = false
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -722,8 +721,5 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         const val MSG_TURN_OFF_SENSORS: Int = 420
         const val MSG_SHOW_POSTURE: Int = 5
         const val MSG_HIDE_POSTURE: Int = 6
-        const val DISABLE_TOUCH_LEFT: Int = 1 
-        const val DISABLE_TOUCH_RIGHT: Int = 2
-        const val TOUCH_ALL_ENABLE: Int = 0
     }
 }
