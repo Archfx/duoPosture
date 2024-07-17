@@ -227,7 +227,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     }
 
     private fun connectHalIfNeeded() {
-        if (displayHal == null || touchHal == null) {
+        if (displayHal == null || (touchHal == null && touchHalV2 == null) ) {
             connectHal()
         }
     }
