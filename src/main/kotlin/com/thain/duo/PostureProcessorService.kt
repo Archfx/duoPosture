@@ -37,7 +37,10 @@ import android.util.Log
 import kotlinx.coroutines.runBlocking
 
 import vendor.surface.displaytopology.V1_2.IDisplayTopology
-import vendor.surface.touchpen.V1_2.ITouchPen
+
+import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
+import vendor.surface.touchpen.V1_2.ITouchPen as ITouchPenV1_2
+
 
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
@@ -52,7 +55,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var currentTouchComposition: Int = -1
     private var currentRotation: Rotation = Rotation.RUnknown
     private var displayHal: IDisplayTopology? = null
-    private var touchHal: ITouchPen? = null
+    private var touchHal: ITouchPenV1_0? = null
+    private var touchHalV2: ITouchPenV1_2? = null
     private var systemWm: IWindowManager? = null
     private var userWm: WindowManager? = null
     private var displayManager: IDisplayManager? = null
@@ -62,6 +66,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var postureOverlay: View? = null
 
     private var postureOverlayShown: Boolean = false
+
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -221,7 +226,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     }
 
     private fun connectHalIfNeeded() {
-        if (displayHal == null || touchHal == null) {
+        if (displayHal == null || (touchHal == null && touchHalV2 == null) ) {
             connectHal()
         }
     }
@@ -230,9 +235,26 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             displayHal = IDisplayTopology.getService(true)
             displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
+            
+            try {
+                // checking if device is duo2
+                touchHalV2 = ITouchPenV1_2.getService(true)
+                touchHalV2?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+            } catch (e: Throwable) {
+                Log.d(TAG, "Could not connect to Touch HAL 1.2, trying 1.0")
+                touchHalV2 = null
+            } 
 
-            touchHal = ITouchPen.getService(true)
-            touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+            if (touchHalV2 == null) {
+                try {
+                    // Then the device should be a duo1
+                    touchHal = ITouchPenV1_0.getService(true)
+                    touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+                } catch (e: Throwable) {
+                    Log.d(TAG, "Could not connect to Touch HAL 1.0")
+                } 
+            }
+
             Log.d(TAG, "Connected to HAL")
         } catch (e: Throwable) {
             Log.e(TAG, "HAL not connected", e)
@@ -267,7 +289,16 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             handler.removeCallbacksAndMessages(null)
 
             displayHal?.setComposition(composition)
-            touchHal?.setDisplayState(composition)
+
+            if (touchHalV2 == null)
+            {
+                touchHal?.setDisplayState(composition)
+            }
+            else 
+            {
+                touchHalV2?.setDisplayState(composition)
+            }
+            
             currentTouchComposition = composition
             currentDisplayComposition = composition
 
@@ -303,7 +334,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting touch composition ${composition}")
-            touchHal?.setDisplayState(composition)
+
+            if (touchHalV2 == null)
+            {
+                touchHal?.setDisplayState(composition)
+            }
+            else 
+            {
+                touchHalV2?.setDisplayState(composition)
+            }
             currentTouchComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set touch composition", e)
@@ -314,7 +353,14 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
-            touchHal?.hingeAngle(angle)
+            if (touchHalV2 == null)
+            {
+                touchHal?.hingeAngle(angle)
+            }
+            else 
+            {
+                touchHalV2?.hingeAngle(angle)
+            }
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -416,6 +462,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         } 
     }
 
+   
+
     private fun processPosture(newPosture: Posture) {
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
         Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
@@ -427,20 +475,20 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             PostureSensorValue.Palette,
             PostureSensorValue.PeekLeft,
             PostureSensorValue.PeekRight -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
             }
 
             PostureSensorValue.FlatDualP,
             PostureSensorValue.FlatDualL -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
             }
 
             PostureSensorValue.Closed -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
             }
 
             else -> {
-                DeviceStateManagerGlobal.getInstance().requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
+                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
             }
         }
 
@@ -471,6 +519,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
+                
             }
 
             PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
@@ -488,7 +537,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             PostureSensorValue.TentRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-
                 setComposition(1)
             }
 
@@ -496,21 +544,18 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-
                 setComposition(0)
             }
 
             PostureSensorValue.RampRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-
                 setComposition(1)
             }
             
             PostureSensorValue.RampLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-
                 setComposition(0)
             }
 
@@ -523,7 +568,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // systemWm?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
-
                 setComposition(1)
             }
 
@@ -536,7 +580,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     // systemWm?.freezeRotation(3)
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
-
                 setComposition(0)
             }
 
