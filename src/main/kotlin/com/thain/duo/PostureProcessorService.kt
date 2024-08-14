@@ -68,6 +68,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var postureOverlayShown: Boolean = false
 
     private var fingerprintHelper: FingerprintHelper? = null
+    private var ambientLightSensor1: Sensor? = null
+    private var ambientLightSensor2: Sensor? = null
 
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
@@ -150,6 +152,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         PANEL_OFFSET = (PANEL_X + HINGE_GAP) / 2
 
         fingerprintHelper = FingerprintHelper(this)
+        initializeAmbientLightSensors()
 
         val disableHingeVal = "1"
 
@@ -704,21 +707,34 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
+    private fun initializeAmbientLightSensors() {
+        // Find and assign the two ambient light sensors
+        val sensors = sensorManager?.getSensorList(Sensor.TYPE_LIGHT)
+        if (sensors != null && sensors.size >= 2) {
+            ambientLightSensor1 = sensors[0]
+            ambientLightSensor2 = sensors[1]
+        } else {
+            Log.e(TAG, "Could not find two ambient light sensors")
+        }
+    }
+
     
     private fun selectAmbientLightSensor() {
         // Unregister any previous sensor listener
         sensorManager?.unregisterListener(sensorEventListener)
 
         // Select the ambient light sensor based on posture
-        ambientLightSensor = if (isClosed) {
-            sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT, true) // Example for closed posture
+        val selectedSensor = if (isClosed) {
+            ambientLightSensor1 // Use the first sensor when the device is closed
         } else {
-            sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT) // Example for open posture
+            ambientLightSensor2 // Use the second sensor when the device is open
         }
 
         // Register the new sensor listener
-        ambientLightSensor?.let {
+        selectedSensor?.let {
             sensorManager?.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_NORMAL)
+        } ?: run {
+            Log.e(TAG , "Selected ambient light sensor not available")
         }
     }
 
