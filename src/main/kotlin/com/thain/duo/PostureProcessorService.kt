@@ -556,6 +556,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
+                setLeftAmbientLightSensor()
             }
 
             PostureSensorValue.RampRight -> {
@@ -568,6 +569,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
+                setLeftAmbientLightSensor()
             }
 
             PostureSensorValue.FlipLRight -> {
@@ -592,6 +594,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
                 setComposition(0)
+                setLeftAmbientLightSensor()
             }
 
             else -> {
