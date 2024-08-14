@@ -477,6 +477,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         setRotation(newPosture.rotation)
         fingerprintHelper?.enableFingerprint()
+        setRightAmbientLightSensor()
 
         when (newPosture.posture) {
             PostureSensorValue.Book,
@@ -528,7 +529,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
-                selectAmbientLightSensor()
                 
             }
 
@@ -542,6 +542,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(0)
+                setLeftAmbientLightSensor()
             }
 
             PostureSensorValue.TentRight -> {
@@ -714,27 +715,38 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             ambientLightSensor1 = sensors[0]
             ambientLightSensor2 = sensors[1]
         } else {
-            Log.e(TAG, "Could not find two ambient light sensors")
+            Log.e(TAG, "Could not find Left and Right ambient light sensors")
         }
     }
 
     
-    private fun selectAmbientLightSensor() {
+    private fun setLeftAmbientLightSensor() {
         // Unregister any previous sensor listener
         sensorManager?.unregisterListener(sensorEventListener)
 
         // Select the ambient light sensor based on posture
-        val selectedSensor = if (isClosed) {
-            ambientLightSensor1 // Use the first sensor when the device is closed
-        } else {
-            ambientLightSensor2 // Use the second sensor when the device is open
-        }
+        val selectedSensor = ambientLightSensor1 
 
         // Register the new sensor listener
         selectedSensor?.let {
             sensorManager?.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_NORMAL)
         } ?: run {
-            Log.e(TAG , "Selected ambient light sensor not available")
+            Log.e(TAG , "Left ambient light sensor not available")
+        }
+    }
+
+    private fun setRightAmbientLightSensor() {
+        // Unregister any previous sensor listener
+        sensorManager?.unregisterListener(sensorEventListener)
+
+        // Select the ambient light sensor based on posture
+        val selectedSensor =  ambientLightSensor2 // Use the second sensor
+
+        // Register the new sensor listener
+        selectedSensor?.let {
+            sensorManager?.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_NORMAL)
+        } ?: run {
+            Log.e(TAG , "Right ambient light sensor not available")
         }
     }
 
