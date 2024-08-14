@@ -71,6 +71,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var ambientLightSensor1: Sensor? = null
     private var ambientLightSensor2: Sensor? = null
 
+    private var sensorEventListener: SensorEventListener? = null
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -152,6 +153,16 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         PANEL_OFFSET = (PANEL_X + HINGE_GAP) / 2
 
         fingerprintHelper = FingerprintHelper(this)
+        sensorEventListener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                // Handle ambient light sensor event
+                Log.d(TAG, "Ambient light sensor value: ${event.values[0]}")
+            }
+            override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+                // Handle accuracy changes
+            }
+        }
+
         initializeAmbientLightSensors()
 
         val disableHingeVal = "1"

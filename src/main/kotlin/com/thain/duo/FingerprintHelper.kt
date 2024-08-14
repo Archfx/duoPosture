@@ -1,3 +1,4 @@
+package com.thain.duo
 import android.hardware.fingerprint.FingerprintManager
 import android.os.CancellationSignal
 import android.content.Context
