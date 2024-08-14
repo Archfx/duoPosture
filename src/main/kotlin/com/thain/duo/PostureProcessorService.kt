@@ -67,6 +67,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureOverlayShown: Boolean = false
 
+    private var fingerprintHelper: FingerprintHelper? = null
+
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -146,6 +148,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         PANEL_Y = applicationContext.resources.getInteger(HEIGHT)
         HINGE_GAP = applicationContext.resources.getInteger(HINGE)
         PANEL_OFFSET = (PANEL_X + HINGE_GAP) / 2
+
+        fingerprintHelper = FingerprintHelper(this)
 
         val disableHingeVal = "1"
 
@@ -469,6 +473,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
         setRotation(newPosture.rotation)
+        fingerprintHelper?.enableFingerprint()
 
         when (newPosture.posture) {
             PostureSensorValue.Book,
@@ -498,6 +503,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
+                fingerprintHelper?.disableFingerprint()
             }
 
             PostureSensorValue.Book,
@@ -519,6 +525,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
+                selectAmbientLightSensor()
                 
             }
 
@@ -694,6 +701,24 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
 
+        }
+    }
+
+    
+    private fun selectAmbientLightSensor() {
+        // Unregister any previous sensor listener
+        sensorManager?.unregisterListener(sensorEventListener)
+
+        // Select the ambient light sensor based on posture
+        ambientLightSensor = if (isClosed) {
+            sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT, true) // Example for closed posture
+        } else {
+            sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT) // Example for open posture
+        }
+
+        // Register the new sensor listener
+        ambientLightSensor?.let {
+            sensorManager?.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
