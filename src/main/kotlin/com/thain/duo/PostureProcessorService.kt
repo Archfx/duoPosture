@@ -42,6 +42,7 @@ import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
 import vendor.surface.touchpen.V1_2.ITouchPen as ITouchPenV1_2
 
 
+
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
 import com.thain.duo.ResourceHelper.HINGE
@@ -67,7 +68,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureOverlayShown: Boolean = false
 
-    private var fingerprintHelper: FingerprintHelper? = null
+
     private var ambientLightSensor1: Sensor? = null
     private var ambientLightSensor2: Sensor? = null
 
@@ -152,7 +153,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         HINGE_GAP = applicationContext.resources.getInteger(HINGE)
         PANEL_OFFSET = (PANEL_X + HINGE_GAP) / 2
 
-        fingerprintHelper = FingerprintHelper(this)
+        
         sensorEventListener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 // Handle ambient light sensor event
@@ -487,7 +488,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
         setRotation(newPosture.rotation)
-        fingerprintHelper?.enableFingerprint()
         setRightAmbientLightSensor()
 
         when (newPosture.posture) {
@@ -518,7 +518,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
-                fingerprintHelper?.disableFingerprint()
             }
 
             PostureSensorValue.Book,
@@ -777,6 +776,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             // }
         }
     }
+
 
     companion object {
         const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
