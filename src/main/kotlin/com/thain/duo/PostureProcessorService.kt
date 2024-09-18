@@ -507,6 +507,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
+                restartLauncher(this)
             }
 
             PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
@@ -519,6 +520,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
+                restartLauncher(this)
                 
             }
 
@@ -532,12 +534,14 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(0)
+                restartLauncher(this)
             }
 
             PostureSensorValue.TentRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
+                restartLauncher(this)
             }
 
             PostureSensorValue.TentLeft ->
@@ -545,18 +549,21 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
+                restartLauncher(this)
             }
 
             PostureSensorValue.RampRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
+                restartLauncher(this)
             }
             
             PostureSensorValue.RampLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
+                restartLauncher(this)
             }
 
             PostureSensorValue.FlipLRight -> {
@@ -569,6 +576,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
                 setComposition(1)
+                restartLauncher(this)
             }
 
             PostureSensorValue.FlipLLeft -> {
@@ -581,6 +589,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
                 setComposition(0)
+                restartLauncher(this)
             }
 
             else -> {
@@ -703,13 +712,21 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     override fun serviceDied(cookie: Long) {
         if ((cookie == DISPLAY_HAL_DEATH_COOKIE) || (cookie == TOUCHPEN_HAL_DEATH_COOKIE)) {
-            Log.e(TAG, "HAL died!")
+            Log.d(TAG, "HAL died!")
             // runBlocking {
                 connectHal()
                 setComposition(currentDisplayComposition)
             // }
         }
     }
+
+    private fun restartLauncher(context: Context) {
+        val intent = Intent("com.thain.duo.LAUNCHER_RESTART")
+        val userHandle = UserHandle(UserHandle.USER_CURRENT)
+        context.sendBroadcastAsUser(intent, userHandle)
+        Log.d(TAG, "Archfx Sent the broadcast to launcher restart!")
+    }
+    
 
     companion object {
         const val DISPLAY_HAL_DEATH_COOKIE: Long = 1337
