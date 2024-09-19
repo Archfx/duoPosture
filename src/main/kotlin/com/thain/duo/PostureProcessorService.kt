@@ -67,6 +67,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureOverlayShown: Boolean = false
 
+    private var previousTablet: Boolean = true
+
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -507,7 +509,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
-                restartLauncher(this)
+                if (!previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = true
             }
 
             PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
@@ -520,7 +525,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(1)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
                 
             }
 
@@ -534,14 +542,20 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
 
                 setComposition(0)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             PostureSensorValue.TentRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             PostureSensorValue.TentLeft ->
@@ -549,21 +563,30 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             PostureSensorValue.RampRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
             
             PostureSensorValue.RampLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             PostureSensorValue.FlipLRight -> {
@@ -576,7 +599,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
                 setComposition(1)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             PostureSensorValue.FlipLLeft -> {
@@ -589,7 +615,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
                 setComposition(0)
-                restartLauncher(this)
+                if (previousTablet) { 
+                    restartLauncher(this) 
+                }
+                previousTablet = false
             }
 
             else -> {
