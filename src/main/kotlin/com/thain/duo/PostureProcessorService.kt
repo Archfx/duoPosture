@@ -308,13 +308,13 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             // displayHal?.setComposition(2)
             // touchHal?.setDisplayState(2)
 
-            if (composition != 2) {
-                // handler.sendEmptyMessageDelayed(2, 100)
-                // handler.sendEmptyMessageDelayed(composition, 200)
-                // handler.sendEmptyMessage(MSG_SHOW_POSTURE)
-            } else {
-                // handler.sendEmptyMessage(MSG_HIDE_POSTURE)
-            }
+            // if (composition != 2) {
+            //     // handler.sendEmptyMessageDelayed(2, 100)
+            //     // handler.sendEmptyMessageDelayed(composition, 200)
+            //     // handler.sendEmptyMessage(MSG_SHOW_POSTURE)
+            // } else {
+            //     // handler.sendEmptyMessage(MSG_HIDE_POSTURE)
+            // }
 
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
