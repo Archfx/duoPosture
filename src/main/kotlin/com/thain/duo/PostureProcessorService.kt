@@ -497,7 +497,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         when (newPosture.posture) {
             PostureSensorValue.Closed -> {
                 // Turn off the screen by requesting PowerManager to enter sleep mode
-                powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH, 0)
+                powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_DEVICE_FOLD, 0)
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
