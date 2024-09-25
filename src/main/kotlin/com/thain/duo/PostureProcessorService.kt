@@ -496,7 +496,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         when (newPosture.posture) {
             PostureSensorValue.Closed -> {
-                // TODO: Turn off screen, call to power manager?
+                // Turn off the screen by requesting PowerManager to enter sleep mode
+                powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH, 0)
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
@@ -552,10 +553,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
 
             PostureSensorValue.TentLeft ->
@@ -563,30 +564,30 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
 
             PostureSensorValue.RampRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
             
             PostureSensorValue.RampLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
 
             PostureSensorValue.FlipLRight -> {
@@ -599,10 +600,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 }
                 setComposition(1)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
 
             PostureSensorValue.FlipLLeft -> {
@@ -615,10 +616,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 }
                 setComposition(0)
-                if (previousTablet) { 
+                if (!previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
+                previousTablet = true
             }
 
             else -> {
