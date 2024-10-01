@@ -671,6 +671,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                                     Log.d(TAG, "Updating posture because same orientation")
                                 } else {
                                     pendingPosture = newPosture
+                                    currentPosture = newPosture
+                                    Log.d(TAG, "Updating posture because it should")
                                 }
                             } else {
                                 currentPosture = newPosture;
@@ -682,6 +684,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
 
             currentPosture?.let {
+                Log.d(TAG, "Sending posture ${currentPosture.posture.name} : ${currentPosture.rotation.name}")
                 processPosture(it)
             }
 
