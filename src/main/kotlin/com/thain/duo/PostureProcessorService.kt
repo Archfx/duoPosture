@@ -684,7 +684,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
 
             currentPosture?.let {
-                Log.d(TAG, "Sending posture ${currentPosture.posture.name} : ${currentPosture.rotation.name}")
+                // Log.d(TAG, "Sending posture ${currentPosture.posture.name} : ${currentPosture.rotation.name}")
                 processPosture(it)
             }
 
