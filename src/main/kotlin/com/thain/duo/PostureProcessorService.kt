@@ -268,14 +268,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             if (rotation != currentRotation) {
                 Log.d(TAG, "Setting display rotation ${rotation}")
-                // displayHal?.onRotation(rotation.value)
-                // when (rotation) {
-                //     Rotation.R0 -> touchHal?.displayOrientation(0)
-                //     Rotation.R90 -> touchHal?.displayOrientation(90)
-                //     Rotation.R180 -> touchHal?.displayOrientation(180)
-                //     Rotation.R270 -> touchHal?.displayOrientation(270)
-                //     else -> touchHal?.displayOrientation(0)
-                // }
                 currentRotation = rotation
             }
         } catch (e: Throwable) {
@@ -303,18 +295,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             
             currentTouchComposition = composition
             currentDisplayComposition = composition
-
-            // set it to both screen first
-            // displayHal?.setComposition(2)
-            // touchHal?.setDisplayState(2)
-
-            // if (composition != 2) {
-            //     // handler.sendEmptyMessageDelayed(2, 100)
-            //     // handler.sendEmptyMessageDelayed(composition, 200)
-            //     // handler.sendEmptyMessage(MSG_SHOW_POSTURE)
-            // } else {
-            //     // handler.sendEmptyMessage(MSG_HIDE_POSTURE)
-            // }
 
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set composition", e)
@@ -592,13 +572,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             PostureSensorValue.FlipLRight -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                if (newPosture.rotation == Rotation.R90) {
-                    // systemWm?.freezeRotation(1)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                } else {
-                    // systemWm?.freezeRotation(3)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                }
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
                 if (previousTablet) { 
                     restartLauncher(this) 
@@ -608,13 +582,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             PostureSensorValue.FlipLLeft -> {
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                if (newPosture.rotation == Rotation.R90) {
-                    // systemWm?.freezeRotation(1)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                } else {
-                    // systemWm?.freezeRotation(3)
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                }
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
                 if (previousTablet) { 
                     restartLauncher(this) 
@@ -656,38 +624,30 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             if (currentPosture == null) {
                 currentPosture = newPosture
                 Log.d(TAG, "Updating posture because first posture")
+                processPosture(currentPosture)
+                
             } else {
                 currentPosture?.let {
                     if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
                         if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
                             currentPosture = newPosture
                             Log.d(TAG, "Updating posture because previous or new are closed")
+                            processPosture(it)
                         } else {
+                            currentPosture = newPosture
                             // Check rotation
                             if (isRotationLocked) {
                                 // If the same orientation then assign
-                                if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
-                                    currentPosture = newPosture
-                                    Log.d(TAG, "Updating posture because same orientation")
-                                } else {
+                                if (isPortraitPosture(it.posture) != isPortraitPosture(newPosture.posture)) {
                                     pendingPosture = newPosture
-                                    currentPosture = newPosture
-                                    Log.d(TAG, "Updating posture because it should")
+                                    Log.d(TAG, "Updating posture because same orientation")
                                 }
-                            } else {
-                                currentPosture = newPosture;
-                                Log.d(TAG, "Updating posture because not rotation locked")
-                            }
+                            } 
+                            processPosture(it)
                         }
                     }
                 }
             }
-
-            currentPosture?.let {
-                // Log.d(TAG, "Sending posture ${currentPosture.posture.name} : ${currentPosture.rotation.name}")
-                processPosture(it)
-            }
-
             
         }
 
