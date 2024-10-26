@@ -68,6 +68,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var postureOverlayShown: Boolean = false
 
     private var previousTablet: Boolean = true
+    private var isDuo2: Boolean = true
 
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
@@ -227,36 +228,52 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         userWm?.removeView(postureOverlay)
     }
 
-    private fun connectHalIfNeeded() {
-        if (displayHal == null || (touchHal == null && touchHalV2 == null) ) {
-            connectHal()
-        }
-    }
-
-    private fun connectHal() {
-        try {
-            displayHal = IDisplayTopology.getService(true)
-            displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
-            
+    private fun connectTouchHal() {
+        if (isDuo2){
             try {
                 // checking if device is duo2
                 touchHalV2 = ITouchPenV1_2.getService(true)
                 touchHalV2?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             } catch (e: Throwable) {
                 Log.d(TAG, "Could not connect to Touch HAL 1.2, trying 1.0")
-                touchHalV2 = null
+                isDuo2 = false
             } 
+        }
 
-            if (touchHalV2 == null) {
-                try {
-                    // Then the device should be a duo1
-                    touchHal = ITouchPenV1_0.getService(true)
-                    touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
-                } catch (e: Throwable) {
-                    Log.d(TAG, "Could not connect to Touch HAL 1.0")
-                } 
-            }
+        if (!isDuo2) {
+            try {
+                // Then the device should be a duo1
+                touchHal = ITouchPenV1_0.getService(true)
+                touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+            } catch (e: Throwable) {
+                Log.d(TAG, "Could not connect to Touch HAL 1.0")
+            } 
+        }
+    }
 
+    private fun touchHulAngleSet(angle: Int) {
+        if (!isDuo2) touchHal?.hingeAngle(angle)
+        else touchHalV2?.hingeAngle(angle)
+    }
+
+    private fun touchHulCompSet(composition: Int) {
+        if (!isDuo2) touchHal?.setDisplayState(composition)
+        else touchHalV2?.setDisplayState(composition)    
+    }
+
+    private fun connectHalIfNeeded() {
+        if (displayHal == null || (touchHal == null && !isDuo2) || (touchHalV2 == null && isDuo2) ) {
+            connectHal()
+        }
+    }
+
+
+
+    private fun connectHal() {
+        try {
+            displayHal = IDisplayTopology.getService(true)
+            displayHal?.linkToDeath(this, DISPLAY_HAL_DEATH_COOKIE)
+            connectTouchHal()
             Log.d(TAG, "Connected to HAL")
         } catch (e: Throwable) {
             Log.e(TAG, "HAL not connected", e)
@@ -282,17 +299,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             handler.removeCallbacksAndMessages(null)
 
-            displayHal?.setComposition(composition)
-
-            if (touchHalV2 == null)
-            {
-                touchHal?.setDisplayState(composition)
-            }
-            else 
-            {
-                touchHalV2?.setDisplayState(composition)
-            }
-            
+            displayHal?.setComposition(composition
+            touchHulCompSet(composition)
+        
             currentTouchComposition = composition
             currentDisplayComposition = composition
 
@@ -316,15 +325,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting touch composition ${composition}")
+            touchHulCompSet(composition)
 
-            if (touchHalV2 == null)
-            {
-                touchHal?.setDisplayState(composition)
-            }
-            else 
-            {
-                touchHalV2?.setDisplayState(composition)
-            }
             currentTouchComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set touch composition", e)
@@ -335,14 +337,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
-            if (touchHalV2 == null)
-            {
-                touchHal?.hingeAngle(angle)
-            }
-            else 
-            {
-                touchHalV2?.hingeAngle(angle)
-            }
+            touchHulAngleSet(angle)
+            
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
