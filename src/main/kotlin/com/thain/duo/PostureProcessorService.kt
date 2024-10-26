@@ -299,7 +299,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             handler.removeCallbacksAndMessages(null)
 
-            displayHal?.setComposition(composition
+            displayHal?.setComposition(composition)
             touchHulCompSet(composition)
         
             currentTouchComposition = composition
@@ -620,30 +620,38 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             if (currentPosture == null) {
                 currentPosture = newPosture
                 Log.d(TAG, "Updating posture because first posture")
-                processPosture(currentPosture)
-                
             } else {
                 currentPosture?.let {
                     if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
                         if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
                             currentPosture = newPosture
                             Log.d(TAG, "Updating posture because previous or new are closed")
-                            processPosture(it)
                         } else {
-                            currentPosture = newPosture
                             // Check rotation
                             if (isRotationLocked) {
                                 // If the same orientation then assign
-                                if (isPortraitPosture(it.posture) != isPortraitPosture(newPosture.posture)) {
-                                    pendingPosture = newPosture
+                                if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
+                                    currentPosture = newPosture
                                     Log.d(TAG, "Updating posture because same orientation")
+                                } else {
+                                    pendingPosture = newPosture
+                                    currentPosture = newPosture
+                                    Log.d(TAG, "Updating posture because it should")
                                 }
-                            } 
-                            processPosture(it)
+                            } else {
+                                currentPosture = newPosture;
+                                Log.d(TAG, "Updating posture because not rotation locked")
+                            }
                         }
                     }
                 }
             }
+
+            currentPosture?.let {
+                // Log.d(TAG, "Sending posture ${currentPosture.posture.name} : ${currentPosture.rotation.name}")
+                processPosture(it)
+            }
+
             
         }
 
