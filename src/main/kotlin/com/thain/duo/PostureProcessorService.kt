@@ -751,6 +751,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         - If you're transitioning from single screen to a dual screen posture, allow processing.
     */
     private fun staticallyTransformPosture(setRight: Boolean, isRotationLocked: Boolean, newPosture: Posture ){
+        Log.d(TAG, "Attempting a static posture transform, setRight: ${setRight}");
         currentPosture?.let {
             // Change if either the rot or posture has changed.
             if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
@@ -782,6 +783,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                             
                             //If not, provide an equivalent and overwrite the newPosture.
                             if(!isNewPostureMatchingLock){
+                                Log.d(TAG, "Converting ${newPosture.posture} to right-sided variant");
                                 newPosture.posture = getEquivalentPostureForSingleScreen(true, newPosture.posture)
                             }
 
@@ -789,10 +791,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                         }
                         else{
                             // Check if the posture is matching the locked posture setting
-                            isNewPostureMatchingLock = isRightSidedPostures(newPosture.posture)
+                            isNewPostureMatchingLock = isLeftSidedPostures(newPosture.posture)
 
                             //If not, provide an equivalent and overwrite the newPosture.
                             if(!isNewPostureMatchingLock){
+                                Log.d(TAG, "Converting ${newPosture.posture} to left-sided variant");
                                 newPosture.posture = getEquivalentPostureForSingleScreen(false, newPosture.posture)
                             }
 
