@@ -70,6 +70,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var previousTablet: Boolean = true
     private var isDuo2: Boolean = true
 
+    private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
+
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -154,6 +156,13 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         val disabledHinge = SystemProperties.get("persist.sys.phh.duo.disable_hinge", "0") == disableHingeVal
 
+        // Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
+        try{
+            postureLockVal = SystemProperties.get("persist.sys.phh.duo.posture_lock", "0").toInt()
+        } catch (e : NumberFormatException){
+            postureLockVal = PostureLockSetting.Dynamic
+        }
+        
         if (disabledHinge) {
             PANEL_OFFSET = PANEL_X / 2
         }
@@ -370,6 +379,12 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         return Service.START_STICKY
     }
 
+    public enum class PostureLockSetting(val value: Int) {
+        Dynamic(0),
+        Right(1),
+        Left(2);
+    }
+
     public enum class PostureSensorValue(val value: Float) {
         Closed(0f),
         PeekRight(1f),
@@ -440,7 +455,57 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         } 
     }
 
-   
+    private fun isRightSidedPostures(posture: PostureSensorValue): Boolean{
+        when (posture) {
+            PostureSensorValue.BrochureRight,
+            PostureSensorValue.TentRight,
+            PostureSensorValue.FlipPRight, 
+            PostureSensorValue.FlipLRight,
+            PostureSensorValue.RampRight -> {
+                return true
+            }
+
+            else -> {
+                return false
+            }
+        }
+
+
+    }
+
+    private fun isLeftSidedPostures(posture: PostureSensorValue): Boolean{
+        when (posture) {
+            PostureSensorValue.BrochureLeft,
+            PostureSensorValue.TentLeft,
+            PostureSensorValue.FlipPLeft, 
+            PostureSensorValue.FlipLLeft,
+            PostureSensorValue.RampLeft -> {
+                return true
+            }
+
+            else -> {
+                return false
+            }
+        }
+    }   
+
+    private fun isDualScreenPosture(posture: PostureSensorValue): Boolean{
+        when (posture) {
+            Posture.Closed,
+            PostureSensorValue.PeekRight 
+            PostureSensorValue.PeekLeft 
+            PostureSensorValue.Book
+            PostureSensorValue.Palette
+            PostureSensorValue.FlatDualP
+            PostureSensorValue.FlatDualL -> {
+                return true
+            }
+
+            else -> {
+                return false
+            }
+        }
+    }
 
     private fun processPosture(newPosture: Posture) {
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
@@ -592,6 +657,171 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
+    /*
+        Updates the Posture dynamically, depending on what screen is facing up when the device is folded.
+        Also processes the change in posture if the device is flipped while folded to show one screen.
+
+        This is the original logic maintained by thai-ng and Archfx.
+    */
+    private fun dynamicallyTransformPosture(isRotationLocked: Boolean, newPosture: Posture ) {
+        currentPosture?.let {
+            if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
+                if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
+                    currentPosture = newPosture
+                    Log.d(TAG, "Updating posture because previous or new are closed")
+                } else {
+                    // Check rotation
+                    if (isRotationLocked) {
+                        // If the same orientation then assign
+                        if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
+                            currentPosture = newPosture
+                            Log.d(TAG, "Updating posture because same orientation")
+                        } else {
+                            pendingPosture = newPosture
+                            currentPosture = newPosture
+                            Log.d(TAG, "Updating posture because it should")
+                        }
+                    } else {
+                        currentPosture = newPosture;
+                        Log.d(TAG, "Updating posture because not rotation locked")
+                    }
+                }
+            }
+        }
+    }
+
+    // Ugly function, will need to be revised. Unsure of how to do so in kotlin.
+    private fun getEquivalentPostureForSingleScreen(getRightEquivalent: Boolean, incomingPosture: PostureSensorValue): PostureSensorValue {
+        if(getRightEquivalent){
+            if(incomingPosture == PostureSensorValue.BrochureLeft){
+                return PostureSensorValue.BrochureRight
+            }
+
+            if(incomingPosture == PostureSensorValue.TentLeft){
+                return PostureSensorValue.TentRight
+            }
+            
+            if(incomingPosture == PostureSensorValue.FlipPLeft){
+                return PostureSensorvalue.FlipPRight
+            }
+
+            if(incomingPosture == PostureSensorValue.FlipLLeft){
+                return PostureSensorvalue.FlipLRight
+            }
+
+            if(incomingPosture == PostureSensorValue.RampLeft){
+                return PostureSensorvalue.RampRight
+            }
+        }
+        else{
+            if(incomingPosture == PostureSensorValue.BrochureRight){
+                return PostureSensorValue.BrochureLeft
+            }
+
+            if(incomingPosture == PostureSensorValue.TentRight){
+                return PostureSensorValue.TentLeft
+            }
+            
+            if(incomingPosture == PostureSensorValue.FlipPRight){
+                return PostureSensorvalue.FlipPLeft
+            }
+
+            if(incomingPosture == PostureSensorValue.FlipLRight){
+                return PostureSensorvalue.FlipLLeft
+            }
+
+            if(incomingPosture == PostureSensorValue.RampRight){
+                return PostureSensorvalue.RampLeft
+            }
+        }
+    }
+
+    
+
+    /*
+        Processes a Transform in posture only when the device is unfolded/folded to show one screen.
+        If Right is selected, then force the screen to show only on the right.
+        Same logic applies to the left if Left is selected in system settings.
+
+        If the device is rotated such that the left screen is facing up while Right is selected, then this will never change 
+        screen and stay on the right.
+
+        - If your current posture is a single screen posture, disallow change to any other single screen formats.
+        - If your current posture is a single screen posture but the next change is a dual screen posture, allow change.
+        - If you're transitioning from single screen to a dual screen posture, allow processing.
+    */
+    private fun staticallyTransformPosture(setRight: Boolean, isRotationLocked: Boolean, newPosture: Posture ){
+        currentPosture?.let {
+            // Change if either the rot or posture has changed.
+            if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
+                //Check if the posture has changed from or is going to be closed.
+                if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
+                    currentPosture = newPosture
+                    Log.d(TAG, "Updating posture because previous or new are closed")
+                } else {
+                    //If we are already in single screen, disallow changes unless it's to a dual screen posture.
+                    var isCurrentPostureSingleScreen = isRightSidedPostures(it.posture) || isLeftSidedPostures(it.posture)
+                    var allowPostureTransition = false
+
+                    if(isCurrentPostureSingleScreen){
+                        if(setRight){
+                            allowPostureTransition = isRightSidedPostures(newPosture.posture) || isDualScreenPosture(newPosture.posture)
+                        }
+                        else{
+                            allowPostureTransition = isLeftSidedPostures(newPosture.posture) || isDualScreenPosture(newPosture.posture)
+                        }
+                    }
+                    else{
+                        //Posture is not single screen, on transition to single screen, if the new posture screen is not matching
+                        //the correct posture lock value, we convert it to an equivalent posture that matches what we want it to lock to.
+                        //once converted, we set the current posture from this modified new posture we converted.
+                        var isNewPostureMatchingLock = false
+                        if(setRight){
+                            // Check if the new posture is matching the locked posture setting
+                            isNewPostureMatchingLock = isRightSidedPostures(newPosture.posture)
+                            
+                            //If not, provide an equivalent and overwrite the newPosture.
+                            if(!isNewPostureMatchingLock){
+                                newPosture.posture = getEquivalentPostureForSingleScreen(true, newPosture.posture)
+                            }
+
+                            allowPostureTransition = true;
+                        }
+                        else{
+                            // Check if the posture is matching the locked posture setting
+                            isNewPostureMatchingLock = isRightSidedPostures(newPosture.posture)
+
+                            //If not, provide an equivalent and overwrite the newPosture.
+                            if(!isNewPostureMatchingLock){
+                                newPosture.posture = getEquivalentPostureForSingleScreen(false, newPosture.posture)
+                            }
+
+                            allowPostureTransition = true;
+                        }
+                    }
+
+                    if(allowPostureTransition){
+                        if (isRotationLocked) {
+                            // If the same orientation then assign
+                            if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
+                                currentPosture = newPosture
+                                Log.d(TAG, "Updating posture because same orientation")
+                            } else {
+                                pendingPosture = newPosture
+                                currentPosture = newPosture
+                                Log.d(TAG, "Updating posture because it should")
+                            }
+                        } else {
+                            currentPosture = newPosture;
+                            Log.d(TAG, "Updating posture because not rotation locked")
+                        }
+                    }
+                }
+            }
+        }
+        
+    }
+
     inner class PostureSensorListener : SensorEventListener {
         /**
         *  SensorEventListener
@@ -616,34 +846,26 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             Log.d(TAG, "Got posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
             val isRotationLocked = systemWm?.isRotationFrozen() ?: false
-
+            
             if (currentPosture == null) {
                 currentPosture = newPosture
                 Log.d(TAG, "Updating posture because first posture")
-            } else {
-                currentPosture?.let {
-                    if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
-                        if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
-                            currentPosture = newPosture
-                            Log.d(TAG, "Updating posture because previous or new are closed")
-                        } else {
-                            // Check rotation
-                            if (isRotationLocked) {
-                                // If the same orientation then assign
-                                if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
-                                    currentPosture = newPosture
-                                    Log.d(TAG, "Updating posture because same orientation")
-                                } else {
-                                    pendingPosture = newPosture
-                                    currentPosture = newPosture
-                                    Log.d(TAG, "Updating posture because it should")
-                                }
-                            } else {
-                                currentPosture = newPosture;
-                                Log.d(TAG, "Updating posture because not rotation locked")
-                            }
-                        }
-                    }
+            } else{
+
+                /*
+                    Get the PostureLockVal and update it often enough. maybe here? There is probably a better way to               
+                    poll this value and update it.
+                    Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
+                */
+                try{
+                    postureLockVal = SystemProperties.get("persist.sys.phh.duo.posture_lock", "0").toInt()
+                } catch (e : NumberFormatException){
+                    postureLockVal = PostureLockSetting.Dynamic
+                }
+                when (postureLockVal) {
+                    PostureLockSetting.Dynamic -> dynamicallyTransformPosture()
+                    PostureLockSetting.Right -> staticallyTransformPosture(true)
+                    PostureLockSetting.Left -> staticallyTransformPosture(false)
                 }
             }
 
