@@ -863,9 +863,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     postureLockVal = PostureLockSetting.Dynamic
                 }
                 when (postureLockVal) {
-                    PostureLockSetting.Dynamic -> dynamicallyTransformPosture()
-                    PostureLockSetting.Right -> staticallyTransformPosture(true)
-                    PostureLockSetting.Left -> staticallyTransformPosture(false)
+                    PostureLockSetting.Dynamic -> dynamicallyTransformPosture(isRotationLocked, newPosture)
+                    PostureLockSetting.Right -> staticallyTransformPosture(true, isRotationLocked, newPosture)
+                    PostureLockSetting.Left -> staticallyTransformPosture(false, isRotationLocked, newPosture)
                 }
             }
 
