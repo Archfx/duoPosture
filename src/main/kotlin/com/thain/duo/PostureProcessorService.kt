@@ -433,7 +433,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    data class Posture(val posture: PostureSensorValue, val rotation: Rotation)
+    data class Posture(var posture: PostureSensorValue, val rotation: Rotation)
 
     private fun isRotationLocked(): Boolean {
         return Settings.System.getIntForUser(applicationContext.getContentResolver(),
