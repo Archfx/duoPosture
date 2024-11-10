@@ -39,7 +39,7 @@ import kotlinx.coroutines.runBlocking
 import vendor.surface.displaytopology.V1_2.IDisplayTopology
 
 import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
-import vendor.surface.touchpen.V1_2.ITouchPen as ITouchPenV1_2
+import vendor.surface.touchpen.V1_3.ITouchPen as ITouchPenV1_2
 
 
 import com.thain.duo.ResourceHelper.WIDTH
