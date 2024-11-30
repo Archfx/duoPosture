@@ -3,6 +3,7 @@ package com.thain.duo
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.IDisplayManager;
 import android.hardware.devicestate.DeviceStateManagerGlobal;
@@ -41,7 +42,7 @@ import vendor.surface.displaytopology.V1_2.IDisplayTopology
 import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
 import vendor.surface.touchpen.V1_3.ITouchPen as ITouchPenV1_2
 
-
+import com.thain.duo.WirelessChargingBroadcastReceiver
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
 import com.thain.duo.ResourceHelper.HINGE
@@ -72,6 +73,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
+    private var wirelessChargingBroadcastReceiver: WirelessChargingBroadcastReceiver? = null
+    private var wirelessChargingIntentFilter: IntentFilter? = null
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -212,6 +215,18 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
 
         connectHal()
+
+        setupWirelessChargingBroadcastReceiver()
+    }
+
+    private fun setupWirelessChargingBroadcastReceiver() {
+        wirelessChargingBroadcastReceiver = WirelessChargingBroadcastReceiver()
+        
+        //Setup Intent Filter, only one event.
+        wirelessChargingIntentFilter = IntentFilter().also{ intentFilter ->
+            intentFilter.addAction("com.thain.duo.broadcast.SET_WIRELESS_CHARGING_STATE")
+            registerReceiver(wirelessChargingBroadcastReceiver, intentFilter)
+        }
     }
 
     private fun createPostureOverlay() {
@@ -370,9 +385,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         userWm?.let {
             it.removeView(postureOverlay)
         }
+
+        //Destroy Wireless charger receiver
+        wirelessChargingBroadcastReceiver?.let {
+            this.unregisterReceiver(it)
+        }
     }
 
-    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+    //Start sticky can start service without intent (aka null)
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand")
         connectHalIfNeeded()
 
