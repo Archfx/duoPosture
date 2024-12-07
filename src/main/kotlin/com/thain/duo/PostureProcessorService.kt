@@ -42,7 +42,6 @@ import vendor.surface.displaytopology.V1_2.IDisplayTopology
 import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
 import vendor.surface.touchpen.V1_3.ITouchPen as ITouchPenV1_2
 
-import com.thain.duo.WirelessChargingBroadcastReceiver
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
 import com.thain.duo.ResourceHelper.HINGE
@@ -73,7 +72,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
-    private var wirelessChargingBroadcastReceiver: WirelessChargingBroadcastReceiver? = null
     private var wirelessChargingIntentFilter: IntentFilter? = null
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
@@ -216,18 +214,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         connectHal()
 
-        setupWirelessChargingBroadcastReceiver()
     }
 
-    private fun setupWirelessChargingBroadcastReceiver() {
-        wirelessChargingBroadcastReceiver = WirelessChargingBroadcastReceiver()
-        
-        //Setup Intent Filter, only one event.
-        wirelessChargingIntentFilter = IntentFilter().also{ intentFilter ->
-            intentFilter.addAction("com.thain.duo.broadcast.SET_WIRELESS_CHARGING_STATE")
-            registerReceiver(wirelessChargingBroadcastReceiver, intentFilter)
-        }
-    }
 
     private fun createPostureOverlay() {
         val inflater = LayoutInflater.from(applicationContext)
@@ -386,10 +374,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             it.removeView(postureOverlay)
         }
 
-        //Destroy Wireless charger receiver
-        wirelessChargingBroadcastReceiver?.let {
-            this.unregisterReceiver(it)
-        }
     }
 
     //Start sticky can start service without intent (aka null)
