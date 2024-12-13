@@ -72,7 +72,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
-    private var wirelessChargingIntentFilter: IntentFilter? = null
+    private lateinit var peakModeOverlay: PeakModeOverlay
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -213,6 +213,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
 
         connectHal()
+
+        peakModeOverlay = PeakModeOverlay(this)
 
     }
 
@@ -373,6 +375,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         userWm?.let {
             it.removeView(postureOverlay)
         }
+
+        peakModeOverlay.hideOverlay()
 
     }
 
@@ -927,6 +931,13 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 hingeSensor?.let {
                     sensorManager!!.registerListener(hingeAngleSensorListener, hingeSensor, SensorManager.SENSOR_DELAY_NORMAL)
                 }
+            }
+
+            if (hallValue > 5 && hallValue > 5) {
+                val currentTime = java.text.DateFormat.getTimeInstance().format(java.util.Date())
+                peakModeOverlay.showOverlay(currentTime)
+            } else {
+                peakModeOverlay.hideOverlay()
             }
 
             currentHallValue = hallValue
