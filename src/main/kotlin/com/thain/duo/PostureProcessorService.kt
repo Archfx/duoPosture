@@ -74,6 +74,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var wirelessChargingIntentFilter: IntentFilter? = null
 
+    private lateinit var peakModeOverlay: PeakModeOverlay
+
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
@@ -214,6 +216,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         connectHal()
 
+        peakModeOverlay = PeakModeOverlay(this)
+
     }
 
 
@@ -350,7 +354,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
             touchHulAngleSet(angle)
-            
+            if (angle > 4 && angle < 50) {
+                peakModeOverlay.showOverlay()
+            } else {
+                peakModeOverlay.hideOverlay()
+            }        
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -373,6 +381,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         userWm?.let {
             it.removeView(postureOverlay)
         }
+
+        peakModeOverlay.hideOverlay()
 
     }
 

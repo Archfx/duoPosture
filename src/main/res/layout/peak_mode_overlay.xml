@@ -1,0 +1,28 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#AA000000"
+    android:padding="-50dp">
+    <!-- Left clock rotated 90 degrees -->
+    <TextView
+        android:id="@+id/left_clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="60sp"
+        android:textColor="#FFFFFF"
+        android:rotation="90"
+        android:layout_alignParentLeft="true"
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="-50dp" />
+    <!-- Right clock rotated 270 degrees -->
+    <TextView
+        android:id="@+id/right_clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="60sp"
+        android:textColor="#FFFFFF"
+        android:rotation="270"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:layout_marginRight="-50dp" />
+</RelativeLayout>

@@ -18,6 +18,7 @@
 
 	<protected-broadcast android:name="com.thain.duo.LAUNCHER_RESTART" />
 
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
 	<application android:name=".PostureProcessorApp"
 		android:directBootAware="true"
