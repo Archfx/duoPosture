@@ -18,11 +18,23 @@
 
 	<protected-broadcast android:name="com.thain.duo.LAUNCHER_RESTART" />
 
+
 	<application android:name=".PostureProcessorApp"
 		android:directBootAware="true"
 		android:persistent="true"
-		android:process="com.thain.duo">
+		android:process="com.thain.duo"
+		android:icon="@drawable/ic_settings"
+        android:label="DUO-DE Posture Processor">
 		<service android:name="PostureProcessorService" android:exported="true" />
-
+		
+		<service
+			android:name=".PostureTileService"
+			android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+			android:icon="@drawable/ic_posture_tile"
+			android:exported="true">
+			<intent-filter>
+				<action android:name="android.service.quicksettings.action.QS_TILE" />
+			</intent-filter>
+		</service>
 	</application>
 </manifest>
