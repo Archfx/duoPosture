@@ -53,7 +53,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var hingeSensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
     private var currentTouchComposition: Int = -1
-    private var currentRotation: Rotation = Rotation.RUnknown
     private var displayHal: IDisplayTopology? = null
     private var touchHal: ITouchPenV1_0? = null
     private var touchHalV2: ITouchPenV1_2? = null
@@ -82,7 +81,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         ManualRight,
         ManualTablet
     }
-
 
     private val handler: Handler = object: Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -137,7 +135,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 if ((systemWm?.isRotationFrozen() ?: false) && rotation == it.rotation.value) {
                     currentPosture = pendingPosture
                     pendingPosture = null
-                    processPosture(currentPosture ?: Posture(PostureSensorValue.FlatDualP, Rotation.R0))
+                    processPosture(currentPosture ?: Posture(PSValue.FlatDualP, Rotation.R0))
                 }
             }
         }
@@ -303,17 +301,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    private fun setRotation(rotation: Rotation) {
-        try {
-            connectHalIfNeeded()
-            if (rotation != currentRotation) {
-                Log.d(TAG, "Setting display rotation ${rotation}")
-                currentRotation = rotation
-            }
-        } catch (e: Throwable) {
-            Log.e(TAG, "Cannot set rotation", e)
-        }
-    }
 
     private fun setComposition(composition: Int) {
         try {
@@ -407,7 +394,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    public enum class PostureSensorValue(val value: Float) {
+    // Posture Sensor Values
+    public enum class PSValue(val value: Float) {
         Closed(0f),
         PeekRight(1f),
         PeekLeft(2f),
@@ -427,7 +415,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         RampLeft(16f);
 
         companion object {
-            infix fun from(value: Float) = PostureSensorValue.values().first { it.value == value }
+            infix fun from(value: Float) = PSValue.values().first { it.value == value }
         }
     }
 
@@ -451,23 +439,19 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    data class Posture(var posture: PostureSensorValue, val rotation: Rotation)
+    data class Posture(var posture: PSValue, val rotation: Rotation)
 
-    private fun isRotationLocked(): Boolean {
-        return Settings.System.getIntForUser(applicationContext.getContentResolver(),
-                Settings.System.ACCELEROMETER_ROTATION, 0, UserHandle.USER_CURRENT) == 0;
-    }
 
-    private fun isPortraitPosture(posture: PostureSensorValue): Boolean {
+    private fun isPortraitPosture(posture: PSValue): Boolean {
         when (posture) {
-            PostureSensorValue.Book,
-            PostureSensorValue.FlatDualP,
-            PostureSensorValue.PeekLeft,
-            PostureSensorValue.PeekRight,
-            PostureSensorValue.BrochureRight, 
-            PostureSensorValue.FlipPRight,
-            PostureSensorValue.BrochureLeft, 
-            PostureSensorValue.FlipPLeft -> {
+            PSValue.Book,
+            PSValue.FlatDualP,
+            PSValue.PeekLeft,
+            PSValue.PeekRight,
+            PSValue.BrochureRight, 
+            PSValue.FlipPRight,
+            PSValue.BrochureLeft, 
+            PSValue.FlipPLeft -> {
                 return true
             }
 
@@ -479,50 +463,80 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     // Returns the posture type
     // 0: Tablet, 1: Left, 2: Right, 3: Closed 4: PeekLeft, 5: PeekRight
-    private fun postureType(posture: PostureSensorValue): Int{
+    private fun postureType(posture: PSValue): Int{
         when (posture) {
-            PostureSensorValue.Book,
-            PostureSensorValue.Palette,
-            PostureSensorValue.FlatDualP,
-            PostureSensorValue.FlatDualL -> return 0
-            PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft, 
-            PostureSensorValue.TentLeft, PostureSensorValue.RampLeft, PostureSensorValue.FlipLLeft -> return 1
-            PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight, 
-            PostureSensorValue.TentRight, PostureSensorValue.RampRight, PostureSensorValue.FlipLRight -> return 2
-            PostureSensorValue.Closed -> return 3
-            PostureSensorValue.PeekLeft -> return 4
-            PostureSensorValue.PeekRight -> return 5
+            PSValue.Book,
+            PSValue.Palette,
+            PSValue.FlatDualP,
+            PSValue.FlatDualL -> return 0
+            PSValue.BrochureLeft, PSValue.FlipPLeft, 
+            PSValue.TentLeft, PSValue.RampLeft, PSValue.FlipLLeft -> return 1
+            PSValue.BrochureRight, PSValue.FlipPRight, 
+            PSValue.TentRight, PSValue.RampRight, PSValue.FlipLRight -> return 2
+            PSValue.Closed -> return 3
+            PSValue.PeekLeft -> return 4
+            PSValue.PeekRight -> return 5
             else -> return -1
         }
     }
 
     private fun processPosture(newPosture: Posture) {
-        // Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
-        // Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
-        setRotation(newPosture.rotation)
-
-        when (newPosture.posture) {
-            PostureSensorValue.Book,
-            PostureSensorValue.Palette,
-            PostureSensorValue.PeekLeft,
-            PostureSensorValue.PeekRight -> {
-                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(), null, null)
-            }
-
-            PostureSensorValue.FlatDualP,
-            PostureSensorValue.FlatDualL -> {
-                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(), null, null)
-            }
-
-            PostureSensorValue.Closed -> {
-                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(), null, null)
-            }
-
-            else -> {
-                DeviceStateManagerGlobal.getInstance()?.requestState(DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(), null, null)
-            }
+    when (newPosture.posture) {
+        PSValue.Book,
+        PSValue.Palette,
+        PSValue.PeekLeft,
+        PSValue.PeekRight -> {
+            DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(),
+                null,
+                null
+            )
         }
+
+        PSValue.FlatDualP,
+        PSValue.FlatDualL -> {
+            DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(),
+                null,
+                null
+            )
+        }
+
+        PSValue.Closed -> {
+            DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(),
+                null,
+                null
+            )
+        }
+
+        PSValue.BrochureLeft, PSValue.FlipPLeft, 
+        PSValue.TentLeft, PSValue.RampLeft, PSValue.FlipLLeft -> {
+        DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(),
+                null,
+                null
+            )
+        }
+
+        PSValue.BrochureRight, PSValue.FlipPRight, 
+        PSValue.TentRight, PSValue.RampRight, PSValue.FlipLRight -> {
+        DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(),
+                null,
+                null
+            )
+        }
+
+        else -> {
+            DeviceStateManagerGlobal.getInstance()?.requestState(
+                DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(),
+                null,
+                null
+            )
+        }
+    }
 
         var pt = postureType(newPosture.posture)
         if (pt != 4 || pt != 5) {
@@ -566,11 +580,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
             4 -> {
                 setComposition(0)
-                peakModeOverlay.showOverlay()
+                peakModeOverlay.showOverlay(true)
             }
             5 -> {
                 setComposition(1)
-                peakModeOverlay.showOverlay()
+                peakModeOverlay.showOverlay(false)
             }
 
             else -> {
@@ -585,49 +599,30 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         This is the original logic maintained by thai-ng and Archfx.
     */
-    private fun dynamicallyTransformPosture(isRotationLocked: Boolean, newPosture: Posture ) {
+    private fun dynamicallyTransformPosture( newPosture: Posture ) {
         currentPosture?.let {
             if (it.posture != newPosture.posture || it.rotation.value != newPosture.rotation.value) {
-                if (newPosture.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
-                    currentPosture = newPosture
-                    Log.d(TAG, "Updating posture because previous or new are closed")
-                } else {
-                    // Check rotation
-                    if (isRotationLocked) {
-                        // If the same orientation then assign
-                        if (isPortraitPosture(it.posture) == isPortraitPosture(newPosture.posture)) {
-                            currentPosture = newPosture
-                            Log.d(TAG, "Updating posture because same orientation")
-                        } else {
-                            pendingPosture = newPosture
-                            currentPosture = newPosture
-                            Log.d(TAG, "Updating posture because it should")
-                        }
-                    } else {
-                        currentPosture = newPosture;
-                        Log.d(TAG, "Updating posture because not rotation locked")
-                    }
-                }
+                currentPosture = newPosture;
             }
         }
     }
 
-    private fun getEquivalentPostureForSingleScreen(getRightEquivalent: Boolean, incomingPosture: PostureSensorValue): PostureSensorValue {
+    private fun getEquivalentPostureForSingleScreen(getRightEquivalent: Boolean, incomingPosture: PSValue): PSValue {
         return when {
             getRightEquivalent -> when (incomingPosture) {
-                PostureSensorValue.BrochureLeft -> PostureSensorValue.BrochureRight
-                PostureSensorValue.TentLeft -> PostureSensorValue.TentRight
-                PostureSensorValue.FlipPLeft -> PostureSensorValue.FlipPRight
-                PostureSensorValue.FlipLLeft -> PostureSensorValue.FlipLRight
-                PostureSensorValue.RampLeft -> PostureSensorValue.RampRight
+                PSValue.BrochureLeft -> PSValue.BrochureRight
+                PSValue.TentLeft -> PSValue.TentRight
+                PSValue.FlipPLeft -> PSValue.FlipPRight
+                PSValue.FlipLLeft -> PSValue.FlipLRight
+                PSValue.RampLeft -> PSValue.RampRight
                 else -> incomingPosture
             }
             else -> when (incomingPosture) {
-                PostureSensorValue.BrochureRight -> PostureSensorValue.BrochureLeft
-                PostureSensorValue.TentRight -> PostureSensorValue.TentLeft
-                PostureSensorValue.FlipPRight -> PostureSensorValue.FlipPLeft
-                PostureSensorValue.FlipLRight -> PostureSensorValue.FlipLLeft
-                PostureSensorValue.RampRight -> PostureSensorValue.RampLeft
+                PSValue.BrochureRight -> PSValue.BrochureLeft
+                PSValue.TentRight -> PSValue.TentLeft
+                PSValue.FlipPRight -> PSValue.FlipPLeft
+                PSValue.FlipLRight -> PSValue.FlipLLeft
+                PSValue.RampRight -> PSValue.RampLeft
                 else -> incomingPosture
             }
         }
@@ -644,7 +639,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         - If your current posture is a single screen posture, disallow change to any other single screen formats.
         - If your current posture is a single screen posture but the next change is a dual screen posture, allow change.
     */
-    private fun staticallyTransformPosture(setRight: Boolean, isRotationLocked: Boolean, newPosture: Posture ){
+    private fun staticallyTransformPosture(setRight: Boolean, newPosture: Posture ){
         Log.d(TAG, "Attempting a static posture transform, setRight: ${setRight}");
         // Keep a modifiable Variable using the val from before.
         var newPostureModifiable : Posture = newPosture;
@@ -653,7 +648,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             // Change if either the rot or posture has changed.
             if (it.posture != newPostureModifiable.posture || it.rotation.value != newPostureModifiable.rotation.value) {
                 //Check if the posture has changed from or is going to be closed.
-                if (newPostureModifiable.posture == PostureSensorValue.Closed || it.posture == PostureSensorValue.Closed) {
+                if (newPostureModifiable.posture == PSValue.Closed || it.posture == PSValue.Closed) {
                     currentPosture = newPostureModifiable
                     Log.d(TAG, "Updating posture because previous or new are closed")
                 } else {
@@ -705,20 +700,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     }
 
                     if(allowPostureTransition){
-                        if (isRotationLocked) {
-                            // If the same orientation then assign
-                            if (isPortraitPosture(it.posture) == isPortraitPosture(newPostureModifiable.posture)) {
-                                currentPosture = newPostureModifiable
-                                Log.d(TAG, "Updating posture because same orientation")
-                            } else {
-                                pendingPosture = newPostureModifiable
-                                currentPosture = newPostureModifiable
-                                Log.d(TAG, "Updating posture because it should")
-                            }
-                        } else {
-                            currentPosture = newPostureModifiable;
-                            Log.d(TAG, "Updating posture because not rotation locked")
-                        }
+                        currentPosture = newPostureModifiable;
                     }
                 }
             }
@@ -745,20 +727,18 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         override fun onSensorChanged(event: SensorEvent) {
             if (postureMode != PostureMode.Automatic) return
 
-            val sensorValue = PostureSensorValue from event.values[0]
+            val sensorValue = PSValue from event.values[0]
             val newPosture = Posture(sensorValue, Rotation from event.values[1].toInt())
 
             Log.d(TAG, "Got posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
-
-            val isRotationLocked = systemWm?.isRotationFrozen() ?: false
 
             if (currentPosture == null) {
                 currentPosture = newPosture
             } else {
                 when (postureLockVal) {
-                    PostureLockSetting.Dynamic -> dynamicallyTransformPosture(isRotationLocked, newPosture)
-                    PostureLockSetting.Right -> staticallyTransformPosture(true, isRotationLocked, newPosture)
-                    PostureLockSetting.Left -> staticallyTransformPosture(false, isRotationLocked, newPosture)
+                    PostureLockSetting.Dynamic -> dynamicallyTransformPosture(newPosture)
+                    PostureLockSetting.Right -> staticallyTransformPosture(true, newPosture)
+                    PostureLockSetting.Left -> staticallyTransformPosture(false, newPosture)
                 }
             }
 

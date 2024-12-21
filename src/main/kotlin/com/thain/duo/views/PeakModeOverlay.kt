@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.RelativeLayout
 import android.widget.TextView
 import android.os.BatteryManager
 import java.text.SimpleDateFormat
@@ -30,42 +31,50 @@ class PeakModeOverlay(private val context: Context) {
         return "🕔 $formattedTime | 🔋 $batteryPercentage%"
     }
 
-    fun showOverlay() {
+    fun showOverlay(isLeft: Boolean) {
         val displayText = getDisplayText(context)
-        if (overlayView == null) {
-            // Inflate the overlay view
-            overlayView = LayoutInflater.from(context).inflate(R.layout.peak_mode_overlay, null)
-    
-            // Set the time on the left and right clocks
-            val leftClock = overlayView?.findViewById<TextView>(R.id.left_clock)
-            val rightClock = overlayView?.findViewById<TextView>(R.id.right_clock)
-            
-            if (leftClock != null && rightClock != null) {
-                leftClock.text = displayText
-                rightClock.text = displayText
-            } 
-    
-            // Define layout parameters for the overlay
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
-                PixelFormat.TRANSLUCENT
-            )
-    
-            try {
-                windowManager.addView(overlayView, params)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        
+        // Inflate the overlay view
+        overlayView = LayoutInflater.from(context).inflate(R.layout.peak_mode_overlay, null)
+
+        // Set the time on the left and right clocks
+        val clock = overlayView?.findViewById<TextView>(R.id.clock)
+        
+        
+        if (clock != null ) {
+            clock.text = displayText
+        } 
+
+        // Define layout parameters for the overlay
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+            PixelFormat.TRANSLUCENT
+        )
+
+        if (isLeft) {
+            clock!!.rotation = 90f
+            val clockParams = clock!!.layoutParams as RelativeLayout.LayoutParams
+            clockParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
+            clock!!.layoutParams = clockParams
         } else {
-            overlayView?.findViewById<TextView>(R.id.left_clock)?.text = displayText
-            overlayView?.findViewById<TextView>(R.id.right_clock)?.text = displayText
+            clock!!.rotation = 270f
+            val clockParams = clock!!.layoutParams as RelativeLayout.LayoutParams
+            clockParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT, RelativeLayout.TRUE)
+            clock!!.layoutParams = clockParams
         }
+
+        try {
+            windowManager.addView(overlayView, params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
     }
 
     fun hideOverlay() {
