@@ -68,7 +68,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var postureOverlayShown: Boolean = false
 
     private var previousTablet: Boolean = true
-    private var isDuo2: Boolean = true
+    private var isDuo2: Boolean = false
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
@@ -157,6 +157,12 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         super.onCreate()
         instance = this
 
+        if (SystemProperties.get("ro.hardware", "N/A") == "surfaceduo2") {
+            isDuo2 = true
+        }else{
+            isDuo2 = false
+        }
+
         PANEL_X = applicationContext.resources.getInteger(WIDTH)
         PANEL_Y = applicationContext.resources.getInteger(HEIGHT)
         HINGE_GAP = applicationContext.resources.getInteger(HINGE)
@@ -220,9 +226,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
 
         powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-
         connectHal()
-
         peakModeOverlay = PeakModeOverlay(this)
 
     }
@@ -254,22 +258,19 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private fun connectTouchHal() {
         if (isDuo2){
             try {
-                // checking if device is duo2
                 touchHalV2 = ITouchPenV1_2.getService(true)
                 touchHalV2?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             } catch (e: Throwable) {
-                Log.d(TAG, "Could not connect to Touch HAL 1.2, trying 1.0")
-                isDuo2 = false
+                // Log.d(TAG, "Could not connect to Touch HAL 1.2, trying 1.0")
             } 
         }
 
         if (!isDuo2) {
             try {
-                // Then the device should be a duo1
                 touchHal = ITouchPenV1_0.getService(true)
                 touchHal?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             } catch (e: Throwable) {
-                Log.d(TAG, "Could not connect to Touch HAL 1.0")
+                // Log.d(TAG, "Could not connect to Touch HAL 1.0")
             } 
         }
     }
@@ -289,7 +290,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHal()
         }
     }
-
 
 
     private fun connectHal() {
@@ -360,12 +360,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         try {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
-            touchHulAngleSet(angle)
-            if (angle > 4 && angle < 50) {
-                peakModeOverlay.showOverlay()
-            } else {
-                peakModeOverlay.hideOverlay()
-            }        
+            touchHulAngleSet(angle)       
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -482,61 +477,28 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         } 
     }
 
-    private fun isRightSidedPostures(posture: PostureSensorValue): Boolean{
+    // Returns the posture type
+    // 0: Tablet, 1: Left, 2: Right, 3: Closed 4: PeekLeft, 5: PeekRight
+    private fun postureType(posture: PostureSensorValue): Int{
         when (posture) {
-            PostureSensorValue.BrochureRight,
-            PostureSensorValue.TentRight,
-            PostureSensorValue.FlipPRight, 
-            PostureSensorValue.FlipLRight,
-            PostureSensorValue.RampRight -> {
-                return true
-            }
-
-            else -> {
-                return false
-            }
-        }
-
-
-    }
-
-    private fun isLeftSidedPostures(posture: PostureSensorValue): Boolean{
-        when (posture) {
-            PostureSensorValue.BrochureLeft,
-            PostureSensorValue.TentLeft,
-            PostureSensorValue.FlipPLeft, 
-            PostureSensorValue.FlipLLeft,
-            PostureSensorValue.RampLeft -> {
-                return true
-            }
-
-            else -> {
-                return false
-            }
-        }
-    }   
-
-    private fun isDualScreenPosture(posture: PostureSensorValue): Boolean{
-        when (posture) {
-            PostureSensorValue.Closed,
-            PostureSensorValue.PeekRight, 
-            PostureSensorValue.PeekLeft,
             PostureSensorValue.Book,
             PostureSensorValue.Palette,
             PostureSensorValue.FlatDualP,
-            PostureSensorValue.FlatDualL -> {
-                return true
-            }
-
-            else -> {
-                return false
-            }
+            PostureSensorValue.FlatDualL -> return 0
+            PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft, 
+            PostureSensorValue.TentLeft, PostureSensorValue.RampLeft, PostureSensorValue.FlipLLeft -> return 1
+            PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight, 
+            PostureSensorValue.TentRight, PostureSensorValue.RampRight, PostureSensorValue.FlipLRight -> return 2
+            PostureSensorValue.Closed -> return 3
+            PostureSensorValue.PeekLeft -> return 4
+            PostureSensorValue.PeekRight -> return 5
+            else -> return -1
         }
     }
 
     private fun processPosture(newPosture: Posture) {
-        Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
-        Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
+        // Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
+        // Log.d(TAG, "Processing posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
 
         setRotation(newPosture.rotation)
 
@@ -562,19 +524,12 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
         }
 
-        when (newPosture.posture) {
-            PostureSensorValue.Closed -> {
-                // Turn off the screen by requesting PowerManager to enter sleep mode
-                // powerManager?.goToSleep(SystemClock.uptimeMillis(), PowerManager.GO_TO_SLEEP_REASON_DEVICE_FOLD, 0)
-                systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-                setComposition(2)
-            }
-
-            PostureSensorValue.Book,
-            PostureSensorValue.Palette,
-            PostureSensorValue.FlatDualP,
-            PostureSensorValue.FlatDualL -> {
+        var pt = postureType(newPosture.posture)
+        if (pt != 4 || pt != 5) {
+            peakModeOverlay.hideOverlay()
+        }
+        when (pt) {
+            0 -> {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
@@ -584,53 +539,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 previousTablet = true
             }
 
-            PostureSensorValue.BrochureRight, PostureSensorValue.FlipPRight -> {
-                if (newPosture.rotation == Rotation.R0) {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                } else {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                }
-
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-
-                setComposition(1)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
-                
-            }
-
-            PostureSensorValue.BrochureLeft, PostureSensorValue.FlipPLeft -> {
-                if (newPosture.rotation == Rotation.R0) {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                } else {
-                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                }
-
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-
-                setComposition(0)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
-            }
-
-            PostureSensorValue.TentRight -> {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                setComposition(1)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
-            }
-
-            PostureSensorValue.TentLeft ->
-            {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+            1 -> {
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
+                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 setComposition(0)
                 if (previousTablet) { 
                     restartLauncher(this) 
@@ -638,44 +549,28 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 previousTablet = false
             }
 
-            PostureSensorValue.RampRight -> {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+            2 -> {
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
+                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
                 setComposition(1)
                 if (previousTablet) { 
                     restartLauncher(this) 
                 }
-                previousTablet = false
-            }
-            
-            PostureSensorValue.RampLeft -> {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                setComposition(0)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
+                previousTablet = false       
             }
 
-            PostureSensorValue.FlipLRight -> {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
+            3 -> {
+                systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                setComposition(2)
+            }
+            4 -> {
+                setComposition(0)
+                peakModeOverlay.showOverlay()
+            }
+            5 -> {
                 setComposition(1)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
-            }
-
-            PostureSensorValue.FlipLLeft -> {
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                setComposition(0)
-                if (previousTablet) { 
-                    restartLauncher(this) 
-                }
-                previousTablet = false
+                peakModeOverlay.showOverlay()
             }
 
             else -> {
@@ -717,7 +612,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
     }
 
-    // Ugly function, will need to be revised. Unsure of how to do so in kotlin.
     private fun getEquivalentPostureForSingleScreen(getRightEquivalent: Boolean, incomingPosture: PostureSensorValue): PostureSensorValue {
         return when {
             getRightEquivalent -> when (incomingPosture) {
@@ -738,8 +632,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
         }
     }
-
-    
 
     /*
         Processes a Transform in posture only when the device is unfolded/folded to show one screen.
@@ -766,15 +658,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     Log.d(TAG, "Updating posture because previous or new are closed")
                 } else {
                     //If we are already in single screen, disallow changes unless it's to a dual screen posture.
-                    var isCurrentPostureSingleScreen = isRightSidedPostures(it.posture) || isLeftSidedPostures(it.posture)
+                    var isCurrentPostureSingleScreen = (postureType(it.posture) == 2) || (postureType(it.posture) == 1)
                     var allowPostureTransition = false
 
                     if(isCurrentPostureSingleScreen){
                         if(setRight){
-                            allowPostureTransition = isRightSidedPostures(newPostureModifiable.posture) || isDualScreenPosture(newPostureModifiable.posture)
+                            allowPostureTransition = (postureType(newPostureModifiable.posture) == 2) || (postureType(newPostureModifiable.posture) == 0)
                         }
                         else{
-                            allowPostureTransition = isLeftSidedPostures(newPostureModifiable.posture) || isDualScreenPosture(newPostureModifiable.posture)
+                            allowPostureTransition = (postureType(newPostureModifiable.posture) == 1) || (postureType(newPostureModifiable.posture) == 0)
                         }
                     }
                     else{
@@ -786,7 +678,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                         var isNewPostureMatchingLock = false
                         if(setRight){
                             // Check if the new posture is matching the locked posture setting
-                            isNewPostureMatchingLock = isRightSidedPostures(newPostureModifiable.posture)
+                            isNewPostureMatchingLock = (postureType(newPostureModifiable.posture)==2)
                             
                             //If not, provide an equivalent and overwrite the newPosture.
                             if(!isNewPostureMatchingLock){
@@ -799,7 +691,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                         }
                         else{
                             // Check if the posture is matching the locked posture setting
-                            isNewPostureMatchingLock = isLeftSidedPostures(newPostureModifiable.posture)
+                            isNewPostureMatchingLock = (postureType(newPostureModifiable.posture) == 1)
 
                             //If not, provide an equivalent and overwrite the newPosture.
                             if(!isNewPostureMatchingLock){
@@ -850,52 +742,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         // event.values[4]: accelY
         // event.values[5]: hingeAngle
 
-        // override fun onSensorChanged(event: SensorEvent) {
-        //     if (displayManager == null) {
-        //         Log.d(TAG, "Didn't get DisplayManager.")
-        //     }
-        //     val sensorValue = PostureSensorValue from event.values[0]
-        //     val newPosture = Posture(sensorValue, Rotation from event.values[1].toInt())
-
-        //     Log.d(TAG, "Got posture ${newPosture.posture.name} : ${newPosture.rotation.name}")
-
-        //     val isRotationLocked = systemWm?.isRotationFrozen() ?: false
-            
-        //     if (currentPosture == null) {
-        //         currentPosture = newPosture
-        //         Log.d(TAG, "Updating posture because first posture")
-        //     } else{
-
-        //         /*
-        //             Get the PostureLockVal and update it often enough. maybe here? There is probably a better way to               
-        //             poll this value and update it.
-        //             Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
-        //         */
-        //         // Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
-        //         try{
-        //             postureLockVal = PostureLockSetting.fromInt(SystemProperties.get("persist.sys.phh.duo.posture_lock", "0").toInt())
-        //         } catch (e : NumberFormatException){
-        //             postureLockVal = PostureLockSetting.Dynamic
-        //         }
-        
-        //         when (postureLockVal) {
-        //             PostureLockSetting.Dynamic -> dynamicallyTransformPosture(isRotationLocked, newPosture)
-        //             PostureLockSetting.Right -> staticallyTransformPosture(true, isRotationLocked, newPosture)
-        //             PostureLockSetting.Left -> staticallyTransformPosture(false, isRotationLocked, newPosture)
-        //         }
-        //     }
-
-        //     currentPosture?.let {
-        //         processPosture(it)
-        //     }
-
-            
-        // }
-
-        // override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-
-        // }
-
         override fun onSensorChanged(event: SensorEvent) {
             if (postureMode != PostureMode.Automatic) return
 
@@ -908,7 +754,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
             if (currentPosture == null) {
                 currentPosture = newPosture
-                Log.d(TAG, "Updating posture because first posture")
             } else {
                 when (postureLockVal) {
                     PostureLockSetting.Dynamic -> dynamicallyTransformPosture(isRotationLocked, newPosture)
@@ -972,7 +817,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     public fun setPosture(postureMode: Int) {
         when (postureMode) {
             0 -> {
-                Log.d(TAG, "set tablet mode")
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
@@ -982,14 +826,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 previousTablet = true
             }
             1 -> {
-                Log.d(TAG, "set left mode")
-                // if (newPosture.rotation == Rotation.R0) {
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                // } else {
-                //     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                // }
-
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
                 setComposition(0)
                 if (previousTablet) { 
                     restartLauncher(this) 
@@ -997,14 +835,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 previousTablet = false
             }
             2 -> {
-                Log.d(TAG, "set right mode")
-                // if (newPosture.rotation == Rotation.R0) {
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                // } else {
-                //     displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                // }
-
                 systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
                 if (previousTablet) { 
                     restartLauncher(this) 
@@ -1031,7 +863,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         val intent = Intent("com.thain.duo.LAUNCHER_RESTART")
         val userHandle = UserHandle(UserHandle.USER_CURRENT)
         context.sendBroadcastAsUser(intent, userHandle)
-        Log.d(TAG, "Archfx Sent the broadcast to launcher restart!")
     }
     
 

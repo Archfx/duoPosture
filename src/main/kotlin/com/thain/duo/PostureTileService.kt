@@ -61,7 +61,7 @@ class PostureTileService : TileService() {
             PostureProcessorService.PostureMode.Automatic -> "Automatic"
             PostureProcessorService.PostureMode.ManualLeft -> "Manual(Left)"
             PostureProcessorService.PostureMode.ManualRight -> "Manual(Right)"
-            PostureProcessorService.PostureMode.ManualTablet -> "Manual(Tablet)"
+            PostureProcessorService.PostureMode.ManualTablet -> "Manual(Both)"
         }
     }
 
