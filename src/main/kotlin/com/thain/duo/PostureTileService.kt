@@ -43,14 +43,14 @@ class PostureTileService : TileService() {
                 PostureProcessorService.PostureMode.ManualLeft
             }
             PostureProcessorService.PostureMode.ManualLeft -> {
-                PostureProcessorService.setManualPosture(2)
-                PostureProcessorService.PostureMode.ManualRight
-            }
-            PostureProcessorService.PostureMode.ManualRight -> {
                 PostureProcessorService.setManualPosture(0)
                 PostureProcessorService.PostureMode.ManualTablet
             }
             PostureProcessorService.PostureMode.ManualTablet -> {
+                PostureProcessorService.setManualPosture(2)
+                PostureProcessorService.PostureMode.ManualRight
+            }
+            PostureProcessorService.PostureMode.ManualRight -> {
                 PostureProcessorService.PostureMode.Automatic
             }
         }
