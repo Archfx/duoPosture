@@ -72,6 +72,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var wirelessChargingIntentFilter: IntentFilter? = null
 
     private lateinit var peakModeOverlay: PeakModeOverlay
+    private var isPeakMode: Boolean = false
 
     enum class PostureMode {
         Automatic,
@@ -139,7 +140,6 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         if (SystemProperties.get("ro.hardware", "N/A") == "surfaceduo2") {
             isDuo2 = true
         }
-        peakModeOverlay.hideOverlay()
 
         PANEL_X = applicationContext.resources.getInteger(WIDTH)
         PANEL_Y = applicationContext.resources.getInteger(HEIGHT)
@@ -310,6 +310,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
             touchHalAngleSet(angle)       
+            if (angle > 50) isPeakMode = true
+            else isPeakMode = false
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -470,11 +472,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             }
             4 -> {
                 setComposition(0)
-                peakModeOverlay.showOverlay(true)
+                if (isPeakMode) peakModeOverlay.showOverlay(true)
             }
             5 -> {
                 setComposition(1)
-                peakModeOverlay.showOverlay(false)
+                if (isPeakMode) peakModeOverlay.showOverlay(false)
             }
             else -> {
                 Log.d(TAG, "Unhandled posture");
