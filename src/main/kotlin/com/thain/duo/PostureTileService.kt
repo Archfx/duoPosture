@@ -51,6 +51,7 @@ class PostureTileService : TileService() {
                 PostureProcessorService.PostureMode.ManualRight
             }
             PostureProcessorService.PostureMode.ManualRight -> {
+                PostureProcessorService.setManualPosture(3)
                 PostureProcessorService.PostureMode.Automatic
             }
         }

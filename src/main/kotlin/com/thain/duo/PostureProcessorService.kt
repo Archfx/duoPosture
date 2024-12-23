@@ -614,8 +614,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         // event.values[5]: hingeAngle
 
         override fun onSensorChanged(event: SensorEvent) {
-            if (postureMode != PostureMode.Automatic) return
-
+            
             val sensorValue = PSValue from event.values[0]
             // val newPosture = Posture(sensorValue, Rotation from event.values[1].toInt())
             val newPosture = Posture(sensorValue)
@@ -631,9 +630,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                     PostureLockSetting.Left -> staticallyTransformPosture(false, newPosture)
                 }
             }
-
-            currentPosture?.let {
-                processPosture(it)
+            
+            if (postureMode == PostureMode.Automatic) {
+                currentPosture?.let {
+                    processPosture(it)
+                }
             }
         }
 
@@ -698,6 +699,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
                 setComposition(1)
                 restartLauncher(this, false) 
+            }
+            3 -> {
+                currentPosture?.let { processPosture(it) }                
             }
         }
         
