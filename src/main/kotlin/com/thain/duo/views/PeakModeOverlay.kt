@@ -12,6 +12,7 @@ import android.os.BatteryManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.view.animation.AccelerateDecelerateInterpolator
 
 class PeakModeOverlay(private val context: Context) {
 
@@ -24,26 +25,45 @@ class PeakModeOverlay(private val context: Context) {
         return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
     }
 
-    fun getDisplayText(context: Context): String {
-        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+    fun getTimeText(context: Context): String {
+        val formatter = SimpleDateFormat("KK:mm a", Locale.getDefault())
         val formattedTime = formatter.format(Date())
-        val batteryPercentage = getBatteryPercentage(context)
-        return "🕔 $formattedTime | 🔋 $batteryPercentage%"
+        return "${formattedTime}"
     }
 
-    fun showOverlay(isLeft: Boolean) {
-        val displayText = getDisplayText(context)
+    fun getDateText(context: Context): String {
+        val formatter = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+        val formattedTime = formatter.format(Date())
+        return "${formattedTime}"
+    }
+
+    fun showOverlay() {  
+        val displayText = getTimeText(this)
+        val dateText = getDateText(this)
         
         // Inflate the overlay view
         overlayView = LayoutInflater.from(context).inflate(R.layout.peak_mode_overlay, null)
 
         // Set the time on the left and right clocks
-        val clock = overlayView?.findViewById<TextView>(R.id.clock)
+        // Duo2 had some issues with the overlay showing on only one screen, possibly due to the launcher not being restarted.
+        val left_clock = postureOverlay?.findViewById<TextView>(R.id.left_clock)
+        val left_battery = postureOverlay?.findViewById<TextView>(R.id.left_battery)
+        val right_clock = postureOverlay?.findViewById<TextView>(R.id.right_clock)
+        val right_battery = postureOverlay?.findViewById<TextView>(R.id.right_battery)
+        val battery_background = postureOverlay?.findViewById<View>(R.id.battery_background)
+
+        var heightvar: Int = resources.displayMetrics.heightPixels
+
+        var heightToAnimateTo: Float = heightvar.toFloat() * (getBatteryPercentage() / 100f)    
         
+        battery_background?.animate()?.scaleY(heightToAnimateTo)?.setInterpolator(AccelerateDecelerateInterpolator())?.setDuration(3000);
         
-        if (clock != null ) {
-            clock.text = displayText
-        } 
+        if (left_clock != null && right_clock != null && left_battery != null && right_battery != null) {
+            left_clock.text = displayText
+            right_clock.text = displayText
+            left_battery.text = """${dateText} | 🔋${getBatteryPercentage().toString()}%"""
+            right_battery.text = """${dateText} | 🔋${getBatteryPercentage().toString()}%"""
+        }
 
         // Define layout parameters for the overlay
         val params = WindowManager.LayoutParams(
@@ -56,18 +76,6 @@ class PeakModeOverlay(private val context: Context) {
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
             PixelFormat.TRANSLUCENT
         )
-
-        if (isLeft) {
-            clock!!.rotation = 90f
-            val clockParams = clock!!.layoutParams as RelativeLayout.LayoutParams
-            clockParams.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE)
-            clock!!.layoutParams = clockParams
-        } else {
-            clock!!.rotation = 270f
-            val clockParams = clock!!.layoutParams as RelativeLayout.LayoutParams
-            clockParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT, RelativeLayout.TRUE)
-            clock!!.layoutParams = clockParams
-        }
 
         try {
             windowManager.addView(overlayView, params)

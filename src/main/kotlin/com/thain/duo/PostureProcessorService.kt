@@ -407,40 +407,40 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private fun processPosture(newPosture: Posture) {
 
-    when (newPosture.posture) {
-        PSValue.Book,
-        PSValue.Palette,
-        PSValue.PeekLeft,
-        PSValue.PeekRight -> {
-            DeviceStateManagerGlobal.getInstance()?.requestState(
-                DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(),
-                null,
-                null
-            )
+        when (newPosture.posture) {
+            PSValue.Book,
+            PSValue.Palette,
+            PSValue.PeekLeft,
+            PSValue.PeekRight -> {
+                DeviceStateManagerGlobal.getInstance()?.requestState(
+                    DeviceStateRequest.newBuilder(DeviceState.HALF_OPEN.value).build(),
+                    null,
+                    null
+                )
+            }
+            PSValue.FlatDualP,
+            PSValue.FlatDualL -> {
+                DeviceStateManagerGlobal.getInstance()?.requestState(
+                    DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(),
+                    null,
+                    null
+                )
+            }
+            PSValue.Closed -> {
+                DeviceStateManagerGlobal.getInstance()?.requestState(
+                    DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(),
+                    null,
+                    null
+                )
+            }
+            else -> {
+                DeviceStateManagerGlobal.getInstance()?.requestState(
+                    DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(),
+                    null,
+                    null
+                )
+            }
         }
-        PSValue.FlatDualP,
-        PSValue.FlatDualL -> {
-            DeviceStateManagerGlobal.getInstance()?.requestState(
-                DeviceStateRequest.newBuilder(DeviceState.FLAT.value).build(),
-                null,
-                null
-            )
-        }
-        PSValue.Closed -> {
-            DeviceStateManagerGlobal.getInstance()?.requestState(
-                DeviceStateRequest.newBuilder(DeviceState.CLOSED.value).build(),
-                null,
-                null
-            )
-        }
-        else -> {
-            DeviceStateManagerGlobal.getInstance()?.requestState(
-                DeviceStateRequest.newBuilder(DeviceState.FOLDED.value).build(),
-                null,
-                null
-            )
-        }
-    }
 
         var pt = postureType(newPosture.posture)
         if (pt != 4 || pt != 5) {
@@ -448,35 +448,44 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
         when (pt) {
             0 -> {
-                systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
-                setComposition(2)
-                restartLauncher(this, true)
+                // Should only restart the launcher if the composition has changed.
+                if (currentDisplayComposition != 2){
+                    systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
+                    setComposition(2)
+                    restartLauncher(this, true)
+                }
             }
             1 -> {
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                setComposition(0)
-                restartLauncher(this, false)
+                if(currentDisplayComposition != 0){
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, -PANEL_OFFSET, 0)
+                    systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+                    setComposition(0)
+                    restartLauncher(this, false)
+                }
             }
             2 -> {
-                displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
-                systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
-                setComposition(1)
-                restartLauncher(this, false)      
+                if(currentDisplayComposition != 1){
+                    displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, PANEL_OFFSET, 0)
+                    systemWm?.setForcedDisplaySize(DEFAULT_DISPLAY, PANEL_X, PANEL_Y)
+                    setComposition(1)
+                    restartLauncher(this, false)
+                }      
             }
             3 -> {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
             }
+
+            //The overlay refuses to show on these ones on Duo2. Forcing Dual Display.
             4 -> {
-                setComposition(0)
-                if (isPeakMode) peakModeOverlay.showOverlay(true)
+                setComposition(2)
+                if (isPeakMode) peakModeOverlay.showOverlay()
             }
             5 -> {
-                setComposition(1)
-                if (isPeakMode) peakModeOverlay.showOverlay(false)
+                setComposition(2)
+                if (isPeakMode) peakModeOverlay.showOverlay()
             }
             else -> {
                 Log.d(TAG, "Unhandled posture");
