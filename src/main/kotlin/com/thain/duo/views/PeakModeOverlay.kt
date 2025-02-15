@@ -38,31 +38,31 @@ class PeakModeOverlay(private val context: Context) {
     }
 
     fun showOverlay() {  
-        val displayText = getTimeText(this)
-        val dateText = getDateText(this)
+        val displayText = getTimeText(context)
+        val dateText = getDateText(context)
         
         // Inflate the overlay view
         overlayView = LayoutInflater.from(context).inflate(R.layout.peak_mode_overlay, null)
 
         // Set the time on the left and right clocks
         // Duo2 had some issues with the overlay showing on only one screen, possibly due to the launcher not being restarted.
-        val left_clock = postureOverlay?.findViewById<TextView>(R.id.left_clock)
-        val left_battery = postureOverlay?.findViewById<TextView>(R.id.left_battery)
-        val right_clock = postureOverlay?.findViewById<TextView>(R.id.right_clock)
-        val right_battery = postureOverlay?.findViewById<TextView>(R.id.right_battery)
-        val battery_background = postureOverlay?.findViewById<View>(R.id.battery_background)
+        val left_clock = overlayView?.findViewById<TextView>(R.id.left_clock)
+        val left_battery = overlayView?.findViewById<TextView>(R.id.left_battery)
+        val right_clock = overlayView?.findViewById<TextView>(R.id.right_clock)
+        val right_battery = overlayView?.findViewById<TextView>(R.id.right_battery)
+        val battery_background = overlayView?.findViewById<View>(R.id.battery_background)
 
-        var heightvar: Int = resources.displayMetrics.heightPixels
+        var heightvar: Int = context.resources.displayMetrics.heightPixels
 
-        var heightToAnimateTo: Float = heightvar.toFloat() * (getBatteryPercentage() / 100f)    
+        var heightToAnimateTo: Float = heightvar.toFloat() * (getBatteryPercentage(context) / 100f)    
         
         battery_background?.animate()?.scaleY(heightToAnimateTo)?.setInterpolator(AccelerateDecelerateInterpolator())?.setDuration(3000);
         
         if (left_clock != null && right_clock != null && left_battery != null && right_battery != null) {
             left_clock.text = displayText
             right_clock.text = displayText
-            left_battery.text = """${dateText} | 🔋${getBatteryPercentage().toString()}%"""
-            right_battery.text = """${dateText} | 🔋${getBatteryPercentage().toString()}%"""
+            left_battery.text = """${dateText} | 🔋${getBatteryPercentage(context).toString()}%"""
+            right_battery.text = """${dateText} | 🔋${getBatteryPercentage(context).toString()}%"""
         }
 
         // Define layout parameters for the overlay
