@@ -341,6 +341,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
         peakModeOverlay.hideOverlay()
 
+        unregisterReceiver(pluggedInBroadcastReceiver) 
     }
 
     //Start sticky can start service without intent (aka null)
