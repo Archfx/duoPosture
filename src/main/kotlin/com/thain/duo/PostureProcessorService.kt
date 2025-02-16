@@ -500,7 +500,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
                 
-                if (isPeakMode) peakModeOverlay.showOverlay(false)
+                //Always show overlay in this posture. 
+                if (isPeakMode && isDuo2) peakModeOverlay.showOverlay(false)
             }
 
             //The overlay refuses to show on these ones on Duo2. Forcing Dual Display.

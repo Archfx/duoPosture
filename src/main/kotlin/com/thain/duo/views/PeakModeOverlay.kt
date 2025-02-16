@@ -73,6 +73,15 @@ class PeakModeOverlay(private val context: Context) {
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
 
+        // Cleanup overlay handlers
+        if(handler != null){
+            try{
+                runnable?.let { handler?.removeCallbacks(it) }
+            }catch (e: Exception){
+                e.printStackTrace()
+            }
+        }
+
         // Force the Overlay to cleanup
         hideOverlay(false)
         
@@ -130,15 +139,6 @@ class PeakModeOverlay(private val context: Context) {
                 windowManager.addView(overlayView, params)
             } catch (e: Exception) {
                 e.printStackTrace()
-            }
-
-            // Remove current handler callback and setup a new one if it exists
-            if(handler != null){
-                try{
-                    runnable?.let { handler?.removeCallbacks(it) }
-                }catch (e: Exception){
-                    e.printStackTrace()
-                }
             }
 
             // Setup new handler/runnable pair to hide the overlay after 5 seconds
