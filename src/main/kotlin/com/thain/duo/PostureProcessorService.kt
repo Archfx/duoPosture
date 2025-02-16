@@ -69,7 +69,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
-    private var wirelessChargingIntentFilter: IntentFilter? = null
+    private var pluggedInIntentFilter: IntentFilter? = null
+    private var pluggedInBroadcastReceiver: PluggedInBroadcastReceiver? = null
 
     private lateinit var peakModeOverlay: PeakModeOverlay
     private var isPeakMode: Boolean = false
@@ -205,6 +206,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         connectHal()
         peakModeOverlay = PeakModeOverlay(this)
 
+        //On plugged in event, we want to re-show the overlay
+        pluggedInBroadcastReceiver = PluggedInBroadcastReceiver()
+        pluggedInIntentFilter = IntentFilter().also{intentFilter -> 
+            intentFilter.addAction("android.intent.action.ACTION_POWER_CONNECTED")
+            intentFilter.addAction("android.intent.action.ACTION_POWER_DISCONNECTED")
+            this.registerReceiver(pluggedInBroadcastReceiver, intentFilter)
+            Log.d(TAG, "Broadcast Receiver registered for plugged in event!")
+        }
+
     }
 
 
@@ -331,6 +341,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
         peakModeOverlay.hideOverlay()
 
+        unregisterReceiver(pluggedInBroadcastReceiver) 
     }
 
     //Start sticky can start service without intent (aka null)
@@ -443,9 +454,21 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
 
         var pt = postureType(newPosture.posture)
-        if (pt != 4 || pt != 5) {
-            peakModeOverlay.hideOverlay()
+
+        // Duo2 can see the screen from the side, hiding overlay when not in 3 either
+        if(isDuo2){
+            if (pt != 3 || pt != 4 || pt != 5){
+                peakModeOverlay.hideOverlay()
+            }
         }
+        else{
+            // For Duo1
+            if (pt != 4 || pt != 5) {
+                peakModeOverlay.hideOverlay()
+            }
+        }
+
+        
         when (pt) {
             0 -> {
                 // Should only restart the launcher if the composition has changed.
@@ -476,16 +499,19 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 systemWm?.clearForcedDisplaySize(DEFAULT_DISPLAY)
                 displayManager?.setDisplayOffsets(DEFAULT_DISPLAY, 0, 0)
                 setComposition(2)
+                
+                //Always show overlay in this posture. 
+                if (isPeakMode && isDuo2) peakModeOverlay.showOverlay(false)
             }
 
             //The overlay refuses to show on these ones on Duo2. Forcing Dual Display.
             4 -> {
                 setComposition(2)
-                if (isPeakMode) peakModeOverlay.showOverlay()
+                if (isPeakMode) peakModeOverlay.showOverlay(false)
             }
             5 -> {
                 setComposition(2)
-                if (isPeakMode) peakModeOverlay.showOverlay()
+                if (isPeakMode) peakModeOverlay.showOverlay(false)
             }
             else -> {
                 Log.d(TAG, "Unhandled posture");
@@ -689,6 +715,28 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) { }
+    }
+
+    inner class PluggedInBroadcastReceiver: BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent){     
+            if(action == "android.intent.action.ACTION_POWER_CONNECTED" || action == "android.intent.action.ACTION_POWER_DISCONNECTED" ){
+                // Get the current posture, check if it's either Closed and then show if it is one of these.
+                var pt = postureType(currentPosture.posture)
+
+                //Check if the posture is closed or are we a Duo2
+                if(!isDuo2 || pt != 3){
+                    return
+                }
+                
+                // There shouldn't be any reason for the device to be active during a closed position,
+                // This should show the overlay and then force the device to sleep after 5 seconds if we're in this position.
+                if(isPeakMode){
+                    peakModeOverlay.showOverlay(true)
+                    Log.d(TAG, "Received action ${action} and posture is closed, showing Overlay")
+                }
+                
+            }
+        }
     }
 
     public fun setPosture(postureMode: Int) {
