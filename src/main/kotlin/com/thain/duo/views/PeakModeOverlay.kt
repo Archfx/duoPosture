@@ -172,16 +172,11 @@ class PeakModeOverlay(private val context: Context) {
         }
     }
 
-    // Invoke the member from the PowerManager.java class. We need DEVICE_POWER permissions for this. 
-    // I'm fairly certain this will work as this app is System Signed.
-    // We're invoking cause this method is hidden.
+    //Shut screen off with generic reason.
     fun turnScreenOff(){
         val powerManager = this.getSystemService(Context.POWER_SERVICE) as PowerManager
         try {
-            powerManager.javaClass.getMethod(
-                "goToSleep",
-                *arrayOf<Class<*>?>(Long::class.javaPrimitiveType)
-            ).invoke(powerManager, SystemClock.uptimeMillis())
+            powerManager?.goToSleep(SystemClock.uptimeMillis())
         } catch (e: Exception) {
             e.printStackTrace()
         } 
