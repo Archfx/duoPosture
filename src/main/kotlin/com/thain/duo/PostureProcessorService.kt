@@ -321,7 +321,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
             touchHalAngleSet(angle)       
-            if (angle > 50) isPeakMode = true
+            if (angle < 50) isPeakMode = true
             else isPeakMode = false
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
