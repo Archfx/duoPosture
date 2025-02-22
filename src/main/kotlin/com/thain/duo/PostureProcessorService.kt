@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.BroadcastReceiver
 import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.IDisplayManager;
 import android.hardware.devicestate.DeviceStateManagerGlobal;
@@ -320,7 +321,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
             touchHalAngleSet(angle)       
-            if (angle > 50) isPeakMode = true
+            if (angle < 50) isPeakMode = true
             else isPeakMode = false
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
@@ -719,9 +720,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     inner class PluggedInBroadcastReceiver: BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent){     
+            val action: String? = intent.getAction()
             if(action == "android.intent.action.ACTION_POWER_CONNECTED" || action == "android.intent.action.ACTION_POWER_DISCONNECTED" ){
                 // Get the current posture, check if it's either Closed and then show if it is one of these.
-                var pt = postureType(currentPosture.posture)
+                var pt = postureType(currentPosture!!.posture)
 
                 //Check if the posture is closed or are we a Duo2
                 if(!isDuo2 || pt != 3){

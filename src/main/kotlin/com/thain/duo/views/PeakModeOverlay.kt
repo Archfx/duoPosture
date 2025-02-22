@@ -17,6 +17,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.content.Intent
+import android.content.IntentFilter
 
 class PeakModeOverlay(private val context: Context) {
 
@@ -106,8 +108,8 @@ class PeakModeOverlay(private val context: Context) {
         battery_background?.animate()?.scaleY(heightToAnimateTo)?.setInterpolator(AccelerateDecelerateInterpolator())?.setDuration(3000);
         
         if (left_clock != null && right_clock != null && left_battery != null && right_battery != null && right_hinge_clock != null && left_hinge_clock != null) {
-            var hinge_text = """${displayText} | ${getBatteryEmoji()}${getBatteryPercentage(context).toString()}%"""
-            var battery_text = """${dateText} | ${getBatteryEmoji()}${getBatteryPercentage(context).toString()}%"""
+            var hinge_text = """${displayText} | ${getBatteryEmoji(context)}${getBatteryPercentage(context).toString()}%"""
+            var battery_text = """${dateText} | ${getBatteryEmoji(context)}${getBatteryPercentage(context).toString()}%"""
 
             left_clock.text = displayText
             right_clock.text = displayText
@@ -174,7 +176,7 @@ class PeakModeOverlay(private val context: Context) {
 
     //Shut screen off with generic reason.
     fun turnScreenOff(){
-        val powerManager = this.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         try {
             powerManager?.goToSleep(SystemClock.uptimeMillis())
         } catch (e: Exception) {
@@ -217,7 +219,7 @@ class PeakModeOverlay(private val context: Context) {
             }
         }
 
-        fadeHandler.postDelayed(fadeRunnable, 1000) 
+        fadeRunnable?.let{runnable -> fadeHandler?.postDelayed(runnable, 1000)}
     }
 
 }
