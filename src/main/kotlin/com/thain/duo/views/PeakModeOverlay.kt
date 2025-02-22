@@ -12,6 +12,8 @@ import android.os.BatteryManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.view.animation.Animation
+import android.view.animation.ScaleAnimation
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.os.Handler
 import android.os.Looper
@@ -71,6 +73,19 @@ class PeakModeOverlay(private val context: Context) {
         return "${formattedTime}"
     }
 
+    fun scaleView(v: View, startScale: Float, endScale: Float) {
+        val anim: Animation = ScaleAnimation(
+            1f, 1f,  // Start and end values for the X axis scaling
+            startScale, endScale,  // Start and end values for the Y axis scaling
+            Animation.RELATIVE_TO_SELF, 0f,  // Pivot point of X scaling
+            Animation.RELATIVE_TO_SELF, 1f
+        ) // Pivot point of Y scaling
+        anim.setFillAfter(true) // Needed to keep the result of the animation
+        anim.setDuration(1000)
+        anim.setInterpolator(AccelerateDecelerateInterpolator())
+        v.startAnimation(anim)
+    }
+
     fun showOverlay(sleepAfterShowingOverlay: Boolean) {  
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
@@ -101,11 +116,7 @@ class PeakModeOverlay(private val context: Context) {
         val battery_background = overlayView?.findViewById<View>(R.id.battery_background)
         val parent_view = overlayView?.findViewById<View>(R.id.parent_layout)
 
-        var heightvar: Int = context.resources.displayMetrics.heightPixels
-
-        var heightToAnimateTo: Float = heightvar.toFloat() * (getBatteryPercentage(context) / 100f)    
-        
-        battery_background?.animate()?.scaleY(heightToAnimateTo)?.setInterpolator(AccelerateDecelerateInterpolator())?.setDuration(3000);
+        scaleView(battery_background!!, 0f, getBatteryPercentage(context).toFloat() / 100f)
         
         if (left_clock != null && right_clock != null && left_battery != null && right_battery != null && right_hinge_clock != null && left_hinge_clock != null) {
             var hinge_text = """${displayText} | ${getBatteryEmoji(context)}${getBatteryPercentage(context).toString()}%"""
