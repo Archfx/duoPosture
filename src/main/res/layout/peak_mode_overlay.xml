@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/parent_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#AA000000"
-    android:padding="-50dp">
+    android:background="#000000">
     <!-- Left clock rotated 90 degrees -->
     <View
         android:id="@+id/battery_background"
@@ -15,113 +15,133 @@
         android:layout_height="match_parent"/>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="50dp"
+        android:layout_marginStart="-100dp"
+        android:rotation="90"
+        android:background="#000000">
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_alignParentStart="true"
-            android:layout_marginStart="25dp"
+        <TextView
+            android:id="@+id/left_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="#000000"
-            app:layout_constraintDimensionRatio="w,1:1.5"
-            app:layout_constraintTop_toTopOf="parent"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:orientation="horizontal"
+            android:text="12:39am"
+            android:textColor="#FFFFFF"
+            android:textSize="60sp"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent" />
+            app:layout_constraintBottom_toTopOf="@+id/left_battery"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/left_battery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:padding="@null"
+            android:text="Wed 5 Mar 2025 | 297%"
+            android:textColor="#FFFFFF"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/left_clock"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="50dp"
+        android:layout_marginEnd="-100dp"
+        android:rotation="270"
+        android:background="#000000">
+
+        <TextView
+            android:id="@+id/right_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#000000"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:orientation="horizontal"
+            android:text="12:39am"
+            android:textColor="#FFFFFF"
+            android:textSize="60sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/right_battery"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <TextView
+            android:id="@+id/right_battery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:padding="@null"
+            android:text="Wed 5 Mar 2025 | 297%"
+            android:textColor="#FFFFFF"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/right_clock"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginEnd="25dp"
-            android:layout_alignParentEnd="true"
-            android:background="#000000"
-            app:layout_constraintDimensionRatio="w,1:1.5"
+        <TextView
+            android:id="@+id/left_hinge_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:paddingHorizontal="10dp"
+            android:layout_marginEnd="40dp"
+            android:text="00:39am | 297%"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="#55000000"
+            android:rotation="270"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintRight_toRightOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
-    <TextView
-        android:id="@+id/left_clock"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:textSize="60sp"
-        android:textColor="#FFFFFF"
-        android:rotation="90"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true"
-        android:layout_centerVertical="true"
-        android:layout_marginLeft="0dp"
-        android:gravity="center_vertical"/>
-    <TextView
-        android:id="@+id/left_hinge_clock"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:background="#55000000"
-        android:paddingHorizontal="10dp"
-        android:textColor="#FFFFFF"
-        android:rotation="270"
-        android:layout_alignParentLeft="true"
-        android:layout_marginLeft="488dp"
-        android:layout_centerVertical="true"
-        android:gravity="center_vertical"/>
-    <TextView
-        android:id="@+id/left_battery"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:textSize="30sp"
-        android:textColor="#FFFFFF"
-        android:rotation="90"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true"
-        android:layout_centerVertical="true"
-        android:layout_marginLeft="0dp"
-        android:gravity="center_vertical"/>
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/right_clock"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:textSize="60sp"
-        android:textColor="#FFFFFF"
-        android:rotation="270"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
-        android:layout_centerVertical="true"
-        android:layout_marginRight="0dp"
-        android:gravity="center_vertical"/>
-
-    <TextView
-        android:id="@+id/right_hinge_clock"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:background="#55000000"
-        android:paddingHorizontal="10dp"
-        android:textColor="#FFFFFF"
-        android:rotation="90"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="488dp"
-        android:layout_centerVertical="true"
-        android:gravity="center_vertical"/>
-
-    <TextView
-        android:id="@+id/right_battery"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:textSize="30sp"
-        android:textColor="#FFFFFF"
-        android:rotation="270"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
-        android:layout_centerVertical="true"
-        android:layout_marginRight="0dp"
-        android:gravity="center_vertical"/>
-
+        <TextView
+            android:id="@+id/right_hinge_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:paddingHorizontal="10dp"
+            android:layout_marginStart="40dp"
+            android:text="00:39am | 297%"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="#55000000"
+            android:rotation="90"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </RelativeLayout>
