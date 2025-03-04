@@ -230,7 +230,7 @@ class PeakModeOverlay(private val context: Context) {
             }
         }
 
-        fadeRunnable?.let{runnable -> fadeHandler?.postDelayed(runnable, 1000)}
+        fadeRunnable?.let{runnable -> fadeHandler?.postDelayed(runnable, 250)}
     }
 
 }
