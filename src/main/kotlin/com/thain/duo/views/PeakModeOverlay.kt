@@ -139,7 +139,7 @@ class PeakModeOverlay(private val context: Context) {
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -230,7 +230,7 @@ class PeakModeOverlay(private val context: Context) {
             }
         }
 
-        fadeRunnable?.let{runnable -> fadeHandler?.postDelayed(runnable, 1000)}
+        fadeRunnable?.let{runnable -> fadeHandler?.postDelayed(runnable, 250)}
     }
 
 }

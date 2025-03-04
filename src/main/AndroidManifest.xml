@@ -25,7 +25,8 @@
 		android:persistent="true"
 		android:process="com.thain.duo"
 		android:icon="@drawable/ic_settings"
-        android:label="DUO-DE Posture Processor">
+        android:label="DUO-DE Posture Processor"
+		android:theme="@style/Overlays">
 		<service android:name="PostureProcessorService" android:exported="true" />
 		
 		<service
