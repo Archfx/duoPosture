@@ -67,6 +67,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private var previousTablet: Boolean = true
     private var isDuo2: Boolean = false
+    private var isHingeDisabled: Boolean = false
 
     private var postureLockVal: PostureLockSetting = PostureLockSetting.Dynamic
 
@@ -150,7 +151,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         val disableHingeVal = "1"
 
-        val disabledHinge = SystemProperties.get("persist.sys.phh.duo.disable_hinge", "0") == disableHingeVal
+        isHingeDisabled = SystemProperties.get("persist.sys.phh.duo.disable_hinge", "0") == disableHingeVal
 
         // Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
         try{
@@ -159,7 +160,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             postureLockVal = PostureLockSetting.Dynamic
         }
         
-        if (disabledHinge) {
+        if (isHingeDisabled) {
             PANEL_OFFSET = PANEL_X / 2
         }
 
@@ -502,17 +503,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 setComposition(2)
                 
                 //Always show overlay in this posture. 
-                if (isPeakMode && isDuo2) peakModeOverlay.showOverlay(false)
+                if (isPeakMode && isDuo2) peakModeOverlay.showOverlay(false, isHingeDisabled)
             }
 
             //The overlay refuses to show on these ones on Duo2. Forcing Dual Display.
             4 -> {
                 setComposition(2)
-                if (isPeakMode) peakModeOverlay.showOverlay(false)
+                if (isPeakMode) peakModeOverlay.showOverlay(false, isHingeDisabled)
             }
             5 -> {
                 setComposition(2)
-                if (isPeakMode) peakModeOverlay.showOverlay(false)
+                if (isPeakMode) peakModeOverlay.showOverlay(false, isHingeDisabled)
             }
             else -> {
                 Log.d(TAG, "Unhandled posture");
@@ -733,7 +734,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 // There shouldn't be any reason for the device to be active during a closed position,
                 // This should show the overlay and then force the device to sleep after 5 seconds if we're in this position.
                 if(isPeakMode){
-                    peakModeOverlay.showOverlay(true)
+                    peakModeOverlay.showOverlay(true, isHingeDisabled)
                     Log.d(TAG, "Received action ${action} and posture is closed, showing Overlay")
                 }
                 

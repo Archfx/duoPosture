@@ -21,6 +21,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.content.Intent
 import android.content.IntentFilter
+import android.view.ViewGroup
+import android.util.TypedValue
 
 class PeakModeOverlay(private val context: Context) {
 
@@ -86,9 +88,15 @@ class PeakModeOverlay(private val context: Context) {
         v.startAnimation(anim)
     }
 
-    fun showOverlay(sleepAfterShowingOverlay: Boolean) {  
+    fun showOverlay(sleepAfterShowingOverlay: Boolean, hingeGapDisabled: Boolean == false) {  
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
+        var hingeClockMargins = 40f // DP Val!
+
+        if(hingeGapDisabled)
+        {
+            hingeClockMargins = 15f // DP Val!
+        }
 
         // Cleanup overlay handlers
         if(handler != null){
@@ -128,6 +136,21 @@ class PeakModeOverlay(private val context: Context) {
             right_hinge_clock.text = hinge_text
             left_battery.text = battery_text
             right_battery.text = battery_text
+
+            // Convert DP to PX
+            val px = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                hingeClockMargins,
+                Resources.getSystem().displayMetrics
+            ).toInt()
+
+            // Apply to hinge
+            var leftHingeClockParams = left_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
+            leftHingeClockParams.marginEnd = px
+            left_hinge_clock.layoutParams = leftHingeClockParams
+            var rightHingeClockParams = right_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
+            rightHingeClockParams.marginStart = px
+            right_hinge_clock.layoutParams = rightHingeClockParams
         }
         if(parent_view != null){
             //Animate from 0 alpha
