@@ -88,7 +88,7 @@ class PeakModeOverlay(private val context: Context) {
         v.startAnimation(anim)
     }
 
-    fun showOverlay(sleepAfterShowingOverlay: Boolean, hingeGapDisabled: Boolean == false) {  
+    fun showOverlay(sleepAfterShowingOverlay: Boolean, hingeGapDisabled: Boolean = false) {  
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
         var hingeClockMargins = 40f // DP Val!
