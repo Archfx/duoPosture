@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.view.ViewGroup
 import android.util.TypedValue
+import android.content.res.Resources
 
 class PeakModeOverlay(private val context: Context) {
 
