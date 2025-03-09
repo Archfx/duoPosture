@@ -118,8 +118,6 @@ class PeakModeOverlay(private val context: Context) {
             selectedHingePosition = HingeClockPosition.Center
         }
         
-
-
         if(hingeGapDisabled)
         {
             hingeClockMargins = 15f // DP Val!
@@ -180,27 +178,19 @@ class PeakModeOverlay(private val context: Context) {
             // Apply to hinge
             var leftHingeClockParams = left_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
             var rightHingeClockParams = right_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
-
-            leftHingeClockParams.marginEnd = px
-            rightHingeClockParams.marginStart = px
             
             when(selectedHingePosition){
                 HingeClockPosition.Top -> {
-                    leftHingeClockParams.setMargins(0, 0, 0, verticalPx) // Push clock up from bottom up
-                    rightHingeClockParams.setMargins(0, 0, 0, verticalPx)
+                    leftHingeClockParams.setMargins(0, 0, px, verticalPx)
+                    rightHingeClockParams.setMargins(px, 0, 0, verticalPx)
                 }
                 HingeClockPosition.Bottom -> {
-                    leftHingeClockParams.setMargins(0, verticalPx, 0, 0) // Push clock from top down
-                    rightHingeClockParams.setMargins(0, verticalPx, 0, 0)
+                    leftHingeClockParams.setMargins(0, verticalPx, px, 0)
+                    rightHingeClockParams.setMargins(px, verticalPx, 0, 0)
                 }
                 HingeClockPosition.Center -> {
-                    leftHingeClockParams.setMargins(0, 0, 0, 0) // reset margin entirely.
-                    rightHingeClockParams.setMargins(0, 0, 0, 0)
-                }
-                else -> {
-                    //Default center
-                    leftHingeClockParams.setMargins(0, 0, 0, 0) // reset margin entirely.
-                    rightHingeClockParams.setMargins(0, 0, 0, 0)
+                    leftHingeClockParams.setMargins(0, 0, px, 0)
+                    rightHingeClockParams.setMargins(px, 0, 0, 0)
                 }
             }
 
