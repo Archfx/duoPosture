@@ -48,7 +48,7 @@ class PeakModeOverlay(private val context: Context) {
         }
     }
 
-    private var selectedHingePosition: HingeClockPosition = HingeClockPosition.CENTER
+    private var selectedHingePosition: HingeClockPosition = HingeClockPosition.Center
 
     fun getBatteryPercentage(context: Context): Int {
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -185,15 +185,20 @@ class PeakModeOverlay(private val context: Context) {
             rightHingeClockParams.marginStart = px
             
             when(selectedHingePosition){
-                HingeClockPosition.TOP -> {
+                HingeClockPosition.Top -> {
                     leftHingeClockParams.setMargins(0, 0, 0, verticalPx) // Push clock up from bottom up
                     rightHingeClockParams.setMargins(0, 0, 0, verticalPx)
                 }
-                HingeClockPosition.BOTTOM -> {
+                HingeClockPosition.Bottom -> {
                     leftHingeClockParams.setMargins(0, verticalPx, 0, 0) // Push clock from top down
                     rightHingeClockParams.setMargins(0, verticalPx, 0, 0)
                 }
-                HingeClockPosition.CENTER -> {
+                HingeClockPosition.Center -> {
+                    leftHingeClockParams.setMargins(0, 0, 0, 0) // reset margin entirely.
+                    rightHingeClockParams.setMargins(0, 0, 0, 0)
+                }
+                else -> {
+                    //Default center
                     leftHingeClockParams.setMargins(0, 0, 0, 0) // reset margin entirely.
                     rightHingeClockParams.setMargins(0, 0, 0, 0)
                 }
