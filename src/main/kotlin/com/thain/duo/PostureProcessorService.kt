@@ -154,14 +154,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         val defaultOn = "1"
 
         isHingeDisabled = SystemProperties.get("persist.sys.phh.duo.disable_hinge", "0") == defaultOn
-        isPeekModeEnabled = SystemProperties.get("persist.sys.phh.duo.peek_mode_enabled", "0") == defaultOn
-
-        // Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
-        try{
-            postureLockVal = PostureLockSetting.fromInt(SystemProperties.get("persist.sys.phh.duo.posture_lock", "0").toInt())
-        } catch (e : NumberFormatException){
-            postureLockVal = PostureLockSetting.Dynamic
-        }
+        updatePreferences()
         
         if (isHingeDisabled) {
             PANEL_OFFSET = PANEL_X / 2
@@ -220,6 +213,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             Log.d(TAG, "Broadcast Receiver registered for plugged in event!")
         }
 
+    }
+
+    private fun updatePreferences(){
+        isPeekModeEnabled = SystemProperties.get("persist.sys.phh.duo.peek_mode_enabled", "1") == "1"
+
+        // Set the System setting in PHH to select from 3 Int vars, Dynamic (0), Right(1), Left(2)
+        try{
+            postureLockVal = PostureLockSetting.fromInt(SystemProperties.get("persist.sys.phh.duo.posture_lock", "0").toInt())
+        } catch (e : NumberFormatException){
+            postureLockVal = PostureLockSetting.Dynamic
+        }
     }
 
 
@@ -422,6 +426,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     }
 
     private fun processPosture(newPosture: Posture) {
+        // Update in case the user wants to see changes on peek mode.
+        updatePreferences()
 
         when (newPosture.posture) {
             PSValue.Book,
