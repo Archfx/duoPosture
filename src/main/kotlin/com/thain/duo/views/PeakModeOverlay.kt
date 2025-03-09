@@ -110,7 +110,7 @@ class PeakModeOverlay(private val context: Context) {
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
         var hingeClockMargins = 40f // DP Val!
-        var hingeClocKVerticalMargin = 625f; // DP Val!
+        var hingeClocKVerticalMargin = 575f; // DP Val!
 
         try{
             selectedHingePosition = HingeClockPosition.fromInt(SystemProperties.get("persist.sys.phh.duo.peek_mode_hinge_clock_position", "0").toInt())
