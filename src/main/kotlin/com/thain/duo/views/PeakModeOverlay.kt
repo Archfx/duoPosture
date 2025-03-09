@@ -10,6 +10,7 @@ import android.widget.RelativeLayout
 import android.widget.TextView
 import android.os.BatteryManager
 import java.text.SimpleDateFormat
+import android.text.format.DateFormat
 import java.util.Date
 import java.util.Locale
 import android.view.animation.Animation
@@ -24,6 +25,7 @@ import android.content.IntentFilter
 import android.view.ViewGroup
 import android.util.TypedValue
 import android.content.res.Resources
+import android.os.SystemProperties
 
 class PeakModeOverlay(private val context: Context) {
 
@@ -35,6 +37,18 @@ class PeakModeOverlay(private val context: Context) {
     private var runnable: Runnable? = null
     private var fadeHandler: Handler? = null
     private var fadeRunnable: Runnable? = null
+
+    enum class HingeClockPosition(val value: Int) {
+        Center(0),
+        Top(1),
+        Bottom(2);
+
+        companion object {
+            fun fromInt(incomingValue: Int) = HingeClockPosition.values().first { it.value == incomingValue }
+        }
+    }
+
+    private var selectedHingePosition: HingeClockPosition = HingeClockPosition.CENTER
 
     fun getBatteryPercentage(context: Context): Int {
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -65,7 +79,10 @@ class PeakModeOverlay(private val context: Context) {
     }
 
     fun getTimeText(context: Context): String {
-        val formatter = SimpleDateFormat("KK:mm a", Locale.getDefault())
+        var formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        if(!DateFormat.is24HourFormat(this)){
+            formatter = SimpleDateFormat("KK:mm a", Locale.getDefault())
+        }
         val formattedTime = formatter.format(Date())
         return "${formattedTime}"
     }
@@ -93,6 +110,15 @@ class PeakModeOverlay(private val context: Context) {
         val displayText = getTimeText(context)
         val dateText = getDateText(context)
         var hingeClockMargins = 40f // DP Val!
+        var hingeClocKVerticalMargin = 625f; // DP Val!
+
+        try{
+            selectedHingePosition = HingeClockPosition.fromInt(SystemProperties.get("persist.sys.phh.duo.peek_mode_hinge_clock_position", "0").toInt())
+        } catch (e : NumberFormatException){
+            selectedHingePosition = HingeClockPosition.Center
+        }
+        
+
 
         if(hingeGapDisabled)
         {
@@ -145,12 +171,35 @@ class PeakModeOverlay(private val context: Context) {
                 Resources.getSystem().displayMetrics
             ).toInt()
 
+            val verticalPx = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                hingeClocKVerticalMargin,
+                Resources.getSystem().displayMetrics
+            ).toInt()
+
             // Apply to hinge
             var leftHingeClockParams = left_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
-            leftHingeClockParams.marginEnd = px
-            left_hinge_clock.layoutParams = leftHingeClockParams
             var rightHingeClockParams = right_hinge_clock.layoutParams as ViewGroup.MarginLayoutParams
+
+            leftHingeClockParams.marginEnd = px
             rightHingeClockParams.marginStart = px
+            
+            when(selectedHingePosition){
+                HingeClockPosition.TOP -> {
+                    leftHingeClockParams.setMargins(0, 0, 0, verticalPx) // Push clock up from bottom up
+                    rightHingeClockParams.setMargins(0, 0, 0, verticalPx)
+                }
+                HingeClockPosition.BOTTOM -> {
+                    leftHingeClockParams.setMargins(0, verticalPx, 0, 0) // Push clock from top down
+                    rightHingeClockParams.setMargins(0, verticalPx, 0, 0)
+                }
+                HingeClockPosition.CENTER -> {
+                    leftHingeClockParams.setMargins(0, 0, 0, 0) // reset margin entirely.
+                    rightHingeClockParams.setMargins(0, 0, 0, 0)
+                }
+            }
+
+            left_hinge_clock.layoutParams = leftHingeClockParams
             right_hinge_clock.layoutParams = rightHingeClockParams
         }
         if(parent_view != null){
