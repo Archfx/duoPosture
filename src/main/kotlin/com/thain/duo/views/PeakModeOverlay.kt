@@ -80,7 +80,7 @@ class PeakModeOverlay(private val context: Context) {
 
     fun getTimeText(context: Context): String {
         var formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
-        if(!DateFormat.is24HourFormat(this)){
+        if(!DateFormat.is24HourFormat(context)){
             formatter = SimpleDateFormat("KK:mm a", Locale.getDefault())
         }
         val formattedTime = formatter.format(Date())
