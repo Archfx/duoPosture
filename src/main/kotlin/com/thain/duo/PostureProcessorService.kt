@@ -274,9 +274,23 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         else touchHalV2?.hingeAngle(angle)
     }
 
-    private fun touchHalCompSet(composition: Int) {
-        if (!isDuo2) touchHal?.setDisplayState(composition)
-        else touchHalV2?.setDisplayState(composition)    
+    private fun touchHalCompSet(composition: Int, resetInteractivity: Boolean = false) {
+        if (!isDuo2) {
+            touchHal?.setDisplayState(composition)
+        }
+        else {
+            touchHalV2?.setDisplayState(composition)
+            if(resetInteractivity){
+                Log.d(TAG, "Triggering interactivity reset!")
+                // This gets around the weird quirk where transitioning from LEFT 
+                // to any other display state locks the screen up. By purposely 
+                // erroring the touch service we can re-link the digitizer to 
+                // work again!
+                touchHalV2?.setInteractive(true);
+                touchHalV2?.setInteractive(false);
+                touchHalV2?.setInteractive(true);
+            }   
+        }    
     }
 
     private fun connectHalIfNeeded() {
@@ -304,7 +318,14 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             Log.d(TAG, "Setting display composition ${composition} new!")
             handler.removeCallbacksAndMessages(null)
             displayHal?.setComposition(composition)
-            touchHalCompSet(composition)
+
+            // This is to get around the LEFT screen locking up in Duo2
+            if(isDuo2 && currentDisplayComposition == 0 && composition != 0){
+                touchHalCompSet(composition, true)    
+            }
+            else {
+                touchHalCompSet(composition)
+            }
             currentDisplayComposition = composition
 
         } catch (e: Throwable) {
@@ -317,7 +338,14 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting display composition ${composition}")
             displayHal?.setComposition(composition)
-            touchHalCompSet(composition)
+
+            // This is to get around the LEFT screen locking up in Duo2
+            if(isDuo2 && currentDisplayComposition == 0 && composition != 0){
+                touchHalCompSet(composition, true)    
+            }
+            else {
+                touchHalCompSet(composition)
+            }
             currentDisplayComposition = composition
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set display composition", e)
