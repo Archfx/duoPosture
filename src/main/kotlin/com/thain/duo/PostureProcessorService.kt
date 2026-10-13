@@ -49,6 +49,7 @@ import com.thain.duo.ResourceHelper.HINGE
 public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var sensorManager: SensorManager? = null
     private var postureSensor: Sensor? = null
+    private var deviceOrientationSensor: Sensor? = null
     private var hallSensor: Sensor? = null
     private var hingeSensor: Sensor? = null
     private var currentDisplayComposition: Int = 5
@@ -77,6 +78,11 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private lateinit var peakModeOverlay: PeakModeOverlay
     private var isPeakMode: Boolean = false
     private var isPeekModeEnabled: Boolean = true
+    
+    private var cachedOrientationValid: Boolean = false;
+    private var cachedHingeAngleValid: Boolean = false;
+    private var cachedOrientationValue: Int = 0; 
+    private var cachedHingeAngleValue: Int = 0;
 
     enum class PostureMode {
         Automatic,
@@ -126,6 +132,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private val postureSensorListener: PostureSensorListener = PostureSensorListener()
     private val hallSensorListener: HallSensorListener = HallSensorListener()
     private val hingeAngleSensorListener: HingeAngleSensorListener = HingeAngleSensorListener()
+    private val deviceOrientationSensorListener: DeviceOrientationSensorListener = DeviceOrientationSensorListener()
 
     private var PANEL_X: Int = 1350
     private var PANEL_Y: Int = 1350
@@ -162,26 +169,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         Log.d(TAG, "Loaded X: ${PANEL_X} Y: ${PANEL_Y} HINGE: ${HINGE_GAP} OFFSET: ${PANEL_OFFSET}")
 
-        sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-
-        postureSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
-            s.getStringType().contains("microsoft.sensor.posture")
-        }.findFirst().orElse(null)
-        postureSensor?.let {
-            sensorManager!!.registerListener(postureSensorListener, postureSensor, SensorManager.SENSOR_DELAY_UI)
-        }
-
-        hallSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
-            s.getStringType().contains("microsoft.sensor.hall_effect")
-        }.findFirst().orElse(null)
-        hallSensor?.let {
-            sensorManager!!.registerListener(hallSensorListener, hallSensor, SensorManager.SENSOR_DELAY_FASTEST)
-        }
-
-        hingeSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE, false)
-        hingeSensor?.let {
-            sensorManager!!.registerListener(hingeAngleSensorListener, hingeSensor, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+        setupSensorAndManager()
 
         systemWm = WindowManagerGlobal.getWindowManagerService()
         if (systemWm == null) {
@@ -204,6 +192,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         connectHal()
         peakModeOverlay = PeakModeOverlay(this)
 
+        setupPluggedFilterAndReceiver()
+    }
+    
+    private fun setupPluggedFilterAndReceiver(){
         //On plugged in event, we want to re-show the overlay
         pluggedInBroadcastReceiver = PluggedInBroadcastReceiver()
         pluggedInIntentFilter = IntentFilter().also{intentFilter -> 
@@ -212,7 +204,41 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             this.registerReceiver(pluggedInBroadcastReceiver, intentFilter)
             Log.d(TAG, "Broadcast Receiver registered for plugged in event!")
         }
+    }
 
+    private fun setupSensorAndManager(){
+        // Sensor setup
+        sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        
+        // Posture sensor - returns back the form the device is bent into.
+        postureSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
+            s.getStringType().contains("microsoft.sensor.posture")
+        }.findFirst().orElse(null)
+        postureSensor?.let {
+            sensorManager!!.registerListener(postureSensorListener, postureSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+        
+        // Hall sensor - determines whether the device is closed or not.
+        hallSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter { s -> 
+            s.getStringType().contains("microsoft.sensor.hall_effect")
+        }.findFirst().orElse(null)
+        hallSensor?.let {
+            sensorManager!!.registerListener(hallSensorListener, hallSensor, SensorManager.SENSOR_DELAY_FASTEST)
+        }
+
+        // Hinge sensor - gives precise (at least as well as it can) angle at which the hinge is opened (0-360 degrees)
+        hingeSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE, false)
+        hingeSensor?.let {
+            sensorManager!!.registerListener(hingeAngleSensorListener, hingeSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+
+        // Device Orientation Sensor - Should return which orientation the device is facing?
+        deviceOrientationSensor = sensorManager!!.getSensorList(Sensor.TYPE_ALL).stream().filter{ s ->
+            s.getStringType().contains("android.sensor.device_orientation")
+        }.findFirst().orElse(null)
+        deviceOrientationSensor?.let {
+            sensorManager!!.registerListener(deviceOrientationSensorListener, deviceOrientationSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     private fun updatePreferences(){
@@ -750,7 +776,59 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     inner class HingeAngleSensorListener : SensorEventListener {
         override fun onSensorChanged(sensorEvent: SensorEvent) {
             val angle = sensorEvent.values[0].toInt()
+            cachedHingeAngleValue = angle;
+            cachedHingeAngleValid = true;
             setHingeAngle(angle);
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) { }
+    }
+
+    inner class DeviceOrientationSensorListener : SensorEventListener {
+        override fun onSensorChanged(sensorEvent: SensorEvent) {
+            // ?? what the fuck is this thing?
+            // I'm basing my logic off the decompiled Java code I've found in touchpenservice
+            
+            //Check if the HAL is even contactable.
+            if(isDuo2){
+                if (touchHalV2 == null) {
+                    return
+                }
+            }
+            else {
+                if(touchHal == null){
+                    return
+                }
+            }
+            
+            val orientation : Int = 0
+            val sensorVal = sensorEvent.values[0].toInt()
+            
+            val orientation = when (sensorVal) {
+                1 -> 270
+                2 -> 180
+                3 -> 90
+                else -> {
+                    Log.e(TAG, "Unknown orientation value: $sensorVal")
+                    0 // Returns a default fallback value for 'i' if unknown
+                }
+            }
+            
+            Log.d(TAG, "Orientation Value: $orientation")
+            cachedOrientationValid = true
+            cachedOrientationValue = orientation
+
+            try{
+                if(isDuo2){
+                    touchHalV2?.displayOrientation(i);
+                }
+                else{
+                    touchHal?.displayOrientation(i);
+                }
+            }
+            catch (e: RemoteException){
+                Log.e(TAG, "Could not apply to TouchHal with exception: $e")
+            }
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) { }
@@ -813,8 +891,26 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     override fun serviceDied(cookie: Long) {
         if ((cookie == DISPLAY_HAL_DEATH_COOKIE) || (cookie == TOUCHPEN_HAL_DEATH_COOKIE)) {
             Log.d(TAG, "HAL died!")
-                connectHal()
-                setComposition(currentDisplayComposition)
+            connectHal()
+            setComposition(currentDisplayComposition)
+
+            // Setup a default value to reconnect the HAL to, which seems to help on Stock Duo2 firmware?
+            if(isDuo2 && touchHalV2 != null){
+                Log.d(TAG, "Force Interactivity On")
+                touchHalV2?.setInteractive(true)
+                Log.d(TAG, "Force Dexterity to Right Hand")
+                touchHalV2?.setDexterity(1);
+                Log.d(TAG, "Force Tap To Wake Enable to false")
+                touchHalV2?.setTapToWakeEnable(false);
+                Log.d(TAG, "Force last known display orientation")
+                if(cachedOrientationValid){
+                    touchHalV2?.displayOrientation(cachedOrientationValue)
+                }
+                Log.d(TAG, "Force last known hinge angle")
+                if(cachedHingeAngleValid){
+                    setHingeAngle(cachedHingeAngleValue);
+                }
+            }
         }
     }
 
