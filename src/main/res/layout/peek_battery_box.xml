@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The battery box, shared by the outer panels (peek_panel.xml) and the hinge strips
+  (peek_strip.xml). BatteryBoxView draws the box + level fill and fills in the icon and
+  percent text below. The including layout supplies id, width, height and margins.
+-->
+<com.thain.duo.BatteryBoxView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="20dp"
+    android:minWidth="80dp"
+    android:paddingHorizontal="10dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/peek_battery_icon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_peek_battery" />
+
+        <TextView
+            android:id="@+id/peek_battery_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:text="80%"/>
+    </LinearLayout>
+</com.thain.duo.BatteryBoxView>

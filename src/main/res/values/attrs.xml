@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="RotatedLayout">
+        <!-- Degrees to rotate the child about its center. Positive = clockwise. -->
+        <attr name="childRotation" format="float" />
+    </declare-styleable>
+</resources>

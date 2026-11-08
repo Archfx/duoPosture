@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The hinge strip content, written as a normal horizontal line:
+    clock | battery box | notification boxes...
+  RotatedLayout turns it 90 degrees so it runs along the hinge. The row's "bottom" ends up
+  against the hinge, so the boxes (rounded top corners, flat bottom) sit flush on it.
+  peek_mode.xml includes this once per screen and supplies width/height.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="bottom"
+    android:orientation="horizontal"
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp">
+
+    <TextClock
+        android:id="@+id/peek_strip_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_vertical"
+        android:format12Hour="h:mm"
+        android:format24Hour="HH:mm"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:layout_marginTop="-3dp"/>
+
+    <!-- First slot after the time: the shared battery box -->
+    <include
+        android:id="@+id/peek_strip_battery"
+        layout="@layout/peek_battery_box"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_marginStart="16dp" />
+
+    <!-- Notification boxes are added here by PeekController (peek_notif_box.xml) -->
+    <LinearLayout
+        android:id="@+id/peek_strip_icons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" />
+</LinearLayout>
+ 

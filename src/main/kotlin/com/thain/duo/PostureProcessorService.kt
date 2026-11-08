@@ -74,9 +74,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var pluggedInIntentFilter: IntentFilter? = null
     private var pluggedInBroadcastReceiver: PluggedInBroadcastReceiver? = null
 
-    private lateinit var peakModeOverlay: PeakModeOverlay
-    private var isPeakMode: Boolean = false
+    private var isPeekMode: Boolean = false
     private var isPeekModeEnabled: Boolean = true
+    private lateinit var peekController: PeekController
 
     enum class PostureMode {
         Automatic,
@@ -202,7 +202,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
         connectHal()
-        peakModeOverlay = PeakModeOverlay(this)
+        
+        // Setup PeekController
+        val peekHingeGap: Int = if (isHingeDisabled) 0 else HINGE_GAP
+        peekController = PeekController(this, userWm!!, PeekNotificationListenerService.source, peekHingeGap, 5)
 
         //On plugged in event, we want to re-show the overlay
         pluggedInBroadcastReceiver = PluggedInBroadcastReceiver()
@@ -357,8 +360,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             connectHalIfNeeded()
             Log.d(TAG, "Setting hinge angle ${angle}")
             touchHalAngleSet(angle)       
-            if (angle < 50) isPeakMode = true
-            else isPeakMode = false
+            if (angle < 50) isPeekMode = true
+            else isPeekMode = false
         } catch (e: Throwable) {
             Log.e(TAG, "Cannot set angle", e)
         }
@@ -376,7 +379,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         userWm?.let {
             it.removeView(postureOverlay)
         }
-        peakModeOverlay.hideOverlay()
+        
+        peekController?.hide()
 
         unregisterReceiver(pluggedInBroadcastReceiver) 
     }
@@ -494,17 +498,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
         var pt = postureType(newPosture.posture)
 
-        // Duo2 can see the screen from the side, hiding overlay when not in 3 either
-        if(isDuo2){
-            if (pt != 3 || pt != 4 || pt != 5){
-                peakModeOverlay.hideOverlay()
-            }
-        }
-        else{
-            // For Duo1
-            if (pt != 4 || pt != 5) {
-                peakModeOverlay.hideOverlay()
-            }
+        if (pt != 3 || pt != 4 || pt != 5){
+            peekController.hide()
         }
 
         
@@ -540,17 +535,17 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 setComposition(2)
                 
                 //Always show overlay in this posture. 
-                if (isPeakMode && isDuo2 && isPeekModeEnabled) peakModeOverlay.showOverlay(false, isHingeDisabled)
+                if (isPeekMode && isPeekModeEnabled) peekController.show()
             }
 
             //The overlay refuses to show on these ones on Duo2. Forcing Dual Display.
             4 -> {
                 setComposition(2)
-                if (isPeakMode && isPeekModeEnabled) peakModeOverlay.showOverlay(false, isHingeDisabled)
+                if (isPeekMode && isPeekModeEnabled) peekController.show()
             }
             5 -> {
                 setComposition(2)
-                if (isPeakMode && isPeekModeEnabled) peakModeOverlay.showOverlay(false, isHingeDisabled)
+                if (isPeekMode && isPeekModeEnabled) peekController.show()
             }
             else -> {
                 Log.d(TAG, "Unhandled posture");
@@ -770,8 +765,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
                 
                 // There shouldn't be any reason for the device to be active during a closed position,
                 // This should show the overlay and then force the device to sleep after 5 seconds if we're in this position.
-                if(isPeakMode && isPeekModeEnabled){
-                    peakModeOverlay.showOverlay(true, isHingeDisabled)
+                if(isPeekMode && isPeekModeEnabled){
+                    peekController.show()
                     Log.d(TAG, "Received action ${action} and posture is closed, showing Overlay")
                 }
                 

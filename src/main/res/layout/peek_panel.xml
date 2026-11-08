@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One complete Peek panel (clock, date, battery, notification icons + count).
+  peek_mode.xml includes this twice, once per outer screen edge.
+  The include overrides width/height/constraints, so the values here are placeholders.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp">
+
+    <TextClock
+        android:id="@+id/peek_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="h:mm"
+        android:format24Hour="HH:mm"
+        android:textColor="#FFFFFF"
+        android:textSize="48sp" />
+
+    <TextClock
+        android:id="@+id/peek_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:format12Hour="EEE, MMM d"
+        android:format24Hour="EEE, MMM d"
+        android:textColor="#B3FFFFFF"
+        android:textSize="16sp" />
+
+    <!-- Same battery box as the hinge strip -->
+    <include
+        android:id="@+id/peek_panel_battery"
+        layout="@layout/peek_battery_box"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_marginTop="24dp" />
+
+    <GridLayout
+        android:id="@+id/peek_notif_icons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:columnCount="3" />
+
+    <TextView
+        android:id="@+id/peek_notif_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#B3FFFFFF"
+        android:textSize="14sp" />
+</LinearLayout>
