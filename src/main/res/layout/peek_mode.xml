@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Peek Mode for a dual-screen display treated as ONE physical display:
+  [ left screen ][ hinge gap ][ right screen ]
+
+  1. Outer edges: the same panel (peek_panel.xml), 1/3 of each screen's width.
+  2. Hinge edges: the same clock + notification icons line (peek_strip.xml) on BOTH screens,
+     running vertically along the hinge.
+       - left screen:  rotated 90 degrees anticlockwise (reads bottom to top)
+       - right screen: rotated 90 degrees clockwise     (reads top to bottom)
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/peek_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="horizontal">
+
+    <!-- LEFT SCREEN -->
+
+    <!-- HINGE GAP: 66 px preview default; PeekController sets the real value at runtime -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <!-- outer-edge panel -->
+        <include
+            android:id="@+id/peek_panel_left"
+            layout="@layout/peek_panel"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.3333" />
+
+        <!-- hinge-edge strip, anticlockwise -->
+        <com.thain.duo.RotatedLayout
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            app:childRotation="-90"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <include
+                android:id="@+id/peek_strip_left"
+                layout="@layout/peek_strip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </com.thain.duo.RotatedLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <View
+        android:id="@+id/peek_hinge_gap"
+        android:layout_width="66px"
+        android:layout_height="match_parent" />
+
+    <!-- RIGHT SCREEN -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <!-- outer-edge panel -->
+        <include
+            android:id="@+id/peek_panel_right"
+            layout="@layout/peek_panel"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_percent="0.3333" />
+
+        <!-- hinge-edge strip, clockwise -->
+        <com.thain.duo.RotatedLayout
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            app:childRotation="90"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <include
+                android:id="@+id/peek_strip_right"
+                layout="@layout/peek_strip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </com.thain.duo.RotatedLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
