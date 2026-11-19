@@ -40,7 +40,7 @@ import kotlinx.coroutines.runBlocking
 import vendor.surface.displaytopology.V1_2.IDisplayTopology
 
 import vendor.surface.touchpen.V1_0.ITouchPen as ITouchPenV1_0
-import vendor.surface.touchpen.V1_3.ITouchPen as ITouchPenV1_2
+import vendor.surface.touchpen.V1_3.ITouchPen as ITouchPenV1_3
 
 import com.thain.duo.ResourceHelper.WIDTH
 import com.thain.duo.ResourceHelper.HEIGHT
@@ -54,7 +54,7 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var currentDisplayComposition: Int = 5
     private var displayHal: IDisplayTopology? = null
     private var touchHal: ITouchPenV1_0? = null
-    private var touchHalV2: ITouchPenV1_2? = null
+    private var touchHalV3: ITouchPenV1_3? = null
     private var systemWm: IWindowManager? = null
     private var userWm: WindowManager? = null
     private var displayManager: IDisplayManager? = null
@@ -77,6 +77,9 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private var isPeekMode: Boolean = false
     private var isPeekModeEnabled: Boolean = true
     private lateinit var peekController: PeekController
+
+    private var screenStateIntentFilter: IntentFilter? = null
+    private var screenStateReceiver: ScreenStateBroadcastReceiver? = null
 
     enum class PostureMode {
         Automatic,
@@ -216,6 +219,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             Log.d(TAG, "Broadcast Receiver registered for plugged in event!")
         }
 
+        // Filter the screen on/off events to control touch interactivity
+        screenStateReceiver = ScreenStateBroadcastReceiver()
+        screenStateIntentFilter = IntentFilter().also{intentFilter -> 
+            intentFilter.addAction(Intent.ACTION_SCREEN_ON)
+            intentFilter.addAction(Intent.ACTION_SCREEN_OFF)
+            this.registerReceiver(screenStateReceiver, intentFilter)
+            Log.d(TAG, "Broadcast Receiver registered for screen on/off events!")
+
+        }
     }
 
     private fun updatePreferences(){
@@ -255,10 +267,10 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
     private fun connectTouchHal() {
         if (isDuo2){
             try {
-                touchHalV2 = ITouchPenV1_2.getService(true)
-                touchHalV2?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
+                touchHalV3 = ITouchPenV1_3.getService(true)
+                touchHalV3?.linkToDeath(this, TOUCHPEN_HAL_DEATH_COOKIE)
             } catch (e: Throwable) {
-                // Log.d(TAG, "Could not connect to Touch HAL 1.2, trying 1.0")
+                // Log.d(TAG, "Could not connect to Touch HAL 1.3, trying 1.0")
             } 
         }
 
@@ -274,7 +286,12 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
 
     private fun touchHalAngleSet(angle: Int) {
         if (!isDuo2) touchHal?.hingeAngle(angle)
-        else touchHalV2?.hingeAngle(angle)
+        else touchHalV3?.hingeAngle(angle)
+    }
+
+    private fun touchHalSetInteractive(interactivity: Boolean) {
+        if (!isDuo2) touchHal?.setInteractive(interactivity)
+        else touchHalV3?.setInteractive(interactivity)
     }
 
     private fun touchHalCompSet(composition: Int, resetInteractivity: Boolean = false) {
@@ -282,22 +299,22 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
             touchHal?.setDisplayState(composition)
         }
         else {
-            touchHalV2?.setDisplayState(composition)
+            touchHalV3?.setDisplayState(composition)
             if(resetInteractivity){
                 Log.d(TAG, "Triggering interactivity reset!")
                 // This gets around the weird quirk where transitioning from LEFT 
                 // to any other display state locks the screen up. By purposely 
                 // erroring the touch service we can re-link the digitizer to 
                 // work again!
-                touchHalV2?.setInteractive(true);
-                touchHalV2?.setInteractive(false);
-                touchHalV2?.setInteractive(true);
+                touchHalV3?.setInteractive(true);
+                touchHalV3?.setInteractive(false);
+                touchHalV3?.setInteractive(true);
             }   
         }    
     }
 
     private fun connectHalIfNeeded() {
-        if (displayHal == null || (touchHal == null && !isDuo2) || (touchHalV2 == null && isDuo2) ) {
+        if (displayHal == null || (touchHal == null && !isDuo2) || (touchHalV3 == null && isDuo2) ) {
             connectHal()
         }
     }
@@ -382,7 +399,8 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         
         peekController?.hide()
 
-        unregisterReceiver(pluggedInBroadcastReceiver) 
+        unregisterReceiver(pluggedInBroadcastReceiver)
+        unregisterReceiver(screenStateReceiver) 
     }
 
     //Start sticky can start service without intent (aka null)
@@ -749,6 +767,15 @@ public class PostureProcessorService : Service(), IHwBinder.DeathRecipient {
         }
 
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) { }
+    }
+
+    inner class ScreenStateBroadcastReceiver: BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_ON -> touchHalSetInteractive(true)
+                Intent.ACTION_SCREEN_OFF -> touchHalSetInteractive(false)
+            }
+        }
     }
 
     inner class PluggedInBroadcastReceiver: BroadcastReceiver() {
